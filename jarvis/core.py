@@ -6,8 +6,7 @@ import time
 import yaml
 
 from models import Base
-from mail import Mail
-from phone import Phone
+from devices import *
 from modules import *
 
 class config:

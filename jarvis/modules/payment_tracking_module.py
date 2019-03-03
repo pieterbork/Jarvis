@@ -1,8 +1,8 @@
 from threading import Thread
 import time
 
-from ..models import User, Contact
-from . import BaseModule
+from . import User, Contact
+from .base_module import BaseModule
 
 class PaymentTrackingModule(BaseModule):
     def __init__(self, conf):

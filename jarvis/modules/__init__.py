@@ -1,2 +1,2 @@
 from ..models import User, Contact
-from CommandModule import CommandModule
+from .command_module import CommandModule

@@ -1,6 +1,6 @@
 import time
-from .BaseModule import BaseModule
 from . import User, Contact
+from .base_module import BaseModule
 
 class CommandModule(BaseModule):
     def __init__(self, *args, **kwargs):
