@@ -7,4 +7,9 @@ WORKDIR Jarvis
 
 RUN pip install -r requirements.txt
 
-CMD ["python", "run.py", "-c", "/jarvis.cfg"]
+RUN addgroup -S -g 2000 jarvis && \
+    adduser -S -u 2000 -G jarvis jarvis
+
+USER jarvis
+
+CMD ["python", "run.py", "-c", "/etc/jarvis/jarvis.cfg"]

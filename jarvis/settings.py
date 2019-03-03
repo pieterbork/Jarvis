@@ -1,9 +1,9 @@
 PUGME_URL = 'http://pugme.herokuapp.com/random'
 CAT_URL = 'http://aws.random.cat/meow'
 JOKE_URL = 'https://icanhazdadjoke.com/'
-GREETINGS = ['hello', 'hi', 'hey']
+GREETINGS = ['hello', 'hi', 'hey', 'hola', 'bonjour']
 COMMANDS = ['ping', 'help', 'get', 'set']
 INTRODUCTIONS = ['my name is', 'im', "i'm"]
 STATEMENTS =  ['you are', 'this is', 'we are']
-QUESTIONS = ['what is', 'do you', 'how do', 'when']
+QUESTIONS = ['what is', 'whats', 'do you', 'how do', 'when']
 VULGARITIES = ['shutup', 'stfu', 'shut up', 'fuck']

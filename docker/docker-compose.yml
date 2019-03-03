@@ -4,7 +4,6 @@ services:
     image: jarvis:latest
     container_name: jarvis
     volumes:
-      - /opt/appdata/jarvis/jarvis.cfg:/jarvis.cfg
-      - /opt/appdata/jarvis/jarvis.db:/jarvis.db
+      - /opt/appdata/jarvis:/etc/jarvis/
     restart:
       always

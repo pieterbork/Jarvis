@@ -90,7 +90,7 @@ class CommandModule(BaseModule):
                 self.set_last(contact, 'no')
         else:
             self.create_user(name, contact)
-            resp = "Hi {}".format(name.title())
+            resp = "It's nice to meet you, {}".format(name.title())
             self.set_last(contact, 'hi')
 
         return resp
