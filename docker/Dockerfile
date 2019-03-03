@@ -5,4 +5,6 @@ RUN git clone https://github.com/pieterbork/Jarvis.git
 
 WORKDIR Jarvis
 
-CMD ["python run.py -c /jarvis.cfg"]
+RUN pip install -r requirements.txt
+
+CMD ["python", "run.py", "-c", "/jarvis.cfg"]
