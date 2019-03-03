@@ -30,7 +30,7 @@ class Jarvis:
         self.mail = Mail(self.config.mail)
         self.phone = Phone(self.config.phone)
         self.threads = []
-        self.engine = create_engine('sqlite:///jarvis.db')
+        self.engine = create_engine('sqlite:///{}'.format(self.config.db.path))
         self.Session = scoped_session(sessionmaker(bind=self.engine))
         Base.metadata.create_all(self.engine)
 
