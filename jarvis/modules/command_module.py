@@ -11,7 +11,7 @@ class CommandModule(BaseModule):
         if not contact.user:
             resp = "You can't issue commands until you have a name."
         elif msg.startswith('help'):
-            resp = "Please visit https://git.io/testing for available commands."
+            resp = "Please visit https://git.io/fhAbW for available commands."
         elif msg.startswith('ping'):
             resp = 'pong'
         else:
@@ -51,6 +51,9 @@ class CommandModule(BaseModule):
             name.replace(char, '')
         name = name.title()
 
+        if len(name.split()) > 1:
+            return resp
+
         if contact.user:
             if name.title() == contact.user.name:
                 resp = "I already know that."
@@ -70,7 +73,7 @@ class CommandModule(BaseModule):
         greeting_prefixes = ['hello', 'hi', 'hey']
         cmd_prefixes = ['ping', 'help', 'get', 'set']
         name_prefixes = ['my name is', 'im', "i'm"]
-
+        
         if any(body.startswith(prefix) for prefix in cmd_prefixes):
             resp = self.get_command_response(contact, body)
         elif any(body.startswith(prefix) for prefix in greeting_prefixes):

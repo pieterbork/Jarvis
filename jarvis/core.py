@@ -1,13 +1,12 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
 import argparse
-import modules
 import time
 import yaml
 
-from models import Base
-from devices import *
-from modules import *
+from .models import Base
+from .devices import *
+from .modules import *
 
 class config:
     def from_dict(self, di):
@@ -33,14 +32,11 @@ class Jarvis:
 
     def run_modules(self):
         try:
-            print(self.modules)
             for module, attrs in self.modules.items():
                 attrs['mailbox'] = self.mail
                 attrs['phone'] = self.phone
                 attrs['shared_session'] = self.Session
-                print(modules, module)
-                mod_func = getattr(modules, module)
-                print(mod_func)
+                mod_func = globals()[module]
                 t = mod_func(attrs)
                 t.start()
                 self.threads.append(t)

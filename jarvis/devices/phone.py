@@ -6,7 +6,7 @@ import bs4
 class Phone:
     def __init__(self, conf):
         self.voice = Voice()
-        self.voice.login(conf['user'], conf['password'])
+        self.voice.login(email=conf['user'], passwd=conf['password'])
 
     def send_sms(self, number, message):
         self.voice.send_sms(number, message)
