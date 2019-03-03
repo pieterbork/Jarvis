@@ -1,14 +1,40 @@
 import time
+import json
 import logging
+import requests
 
-from . import User, Contact
+from . import *
 from .base_module import BaseModule
 
 logger = logging.getLogger(__name__)
 
+
 class CommandModule(BaseModule):
     def __init__(self, *args, **kwargs):
         super(self.__class__, self).__init__(*args, **kwargs)
+
+    def get_get_response(self, contact, parts):
+        resp = None
+        parts_len = len(parts)
+        if parts_len > 1:
+            if parts[1] == 'pug':
+                pug = json.loads(requests.get(PUGME_URL).text)
+                resp = pug["pug"]
+            elif parts[1] == 'cat':
+                cat = json.loads(requests.get(CAT_URL).text)
+                resp = cat["file"]
+            elif parts[1] == 'joke':
+                joke = json.loads(requests.get(JOKE_URL, headers={'Accept': 'application/json'}).text)
+                resp = joke['joke']
+        return resp
+
+    def get_set_response(self, contact, parts):
+        resp = None
+        if parts_len > 2 and parts[1] == 'alias':
+            alias = parts[2].title()
+            self.set_alias(contact.user, alias)
+            resp = 'Your alias has been updated to {}.'.format(alias)
+        return resp
 
     def get_command_response(self, contact, msg):
         resp = None
@@ -20,12 +46,10 @@ class CommandModule(BaseModule):
             resp = 'pong'
         else:
             parts = msg.split()
-            parts_len = len(parts)
             if parts[0] == 'set':
-                if parts_len > 2 and parts[1] == 'alias':
-                    alias = parts[2]
-                    self.set_alias(contact.user, alias)
-                    resp = 'Your alias has been updated to {}.'.format(alias)
+                resp = self.get_set_response(contact, parts)
+            elif parts[0] == 'get':
+                resp = self.get_get_response(contact, parts)
         return resp
 
     def get_greeting_response(self, contact, msg):
@@ -41,18 +65,17 @@ class CommandModule(BaseModule):
             self.set_last(contact, 'name')
         return resp
 
-    def get_name_response(self, contact, msg):
+    def get_introduction_response(self, contact, msg):
         resp = None
-        name_prefixes = ["my name is", "im", "i'm"]
         parts = msg.split()
-        for prefix in name_prefixes:
+        for prefix in INTRODUCTIONS:
             if msg.startswith(prefix):
                 parts = [part for part in msg.split(prefix) if part]
                 break
 
         name = parts[0].strip()
         for char in '., ':
-            name.replace(char, '')
+            name = name.replace(char, '')
         name = name.title()
 
         if len(name.split()) > 1:
@@ -72,18 +95,36 @@ class CommandModule(BaseModule):
 
         return resp
 
+    def get_statement_response(self, contact, body):
+        resp = None
+
+        return "Thats, like, your opinion man."
+
+    def get_question_response(self, contact, body):
+        resp = None
+
+        return "I'm not sure...That's a great question."
+
+    def get_vulgar_response(self, contact, body):
+        resp = None
+
+        return "Chill out."
+
     def get_message_response(self, contact, body):
         resp = None
-        greeting_prefixes = ['hello', 'hi', 'hey']
-        cmd_prefixes = ['ping', 'help', 'get', 'set']
-        name_prefixes = ['my name is', 'im', "i'm"]
         
-        if any(body.startswith(prefix) for prefix in cmd_prefixes):
+        if any(body.startswith(prefix) for prefix in COMMANDS):
             resp = self.get_command_response(contact, body)
-        elif any(body.startswith(prefix) for prefix in greeting_prefixes):
+        elif any(body.startswith(prefix) for prefix in GREETINGS):
             resp = self.get_greeting_response(contact, body)
-        elif any(body.startswith(prefix) for prefix in name_prefixes) or contact.last == 'name':
-            resp = self.get_name_response(contact, body)
+        elif any(body.startswith(prefix) for prefix in INTRODUCTIONS) or contact.last == 'name':
+            resp = self.get_introduction_response(contact, body)
+        elif any(body.startswith(prefix) for prefix in STATEMENTS):
+            resp = self.get_statement_response(contact, body)
+        elif any(body.startswith(prefix) for prefix in QUESTIONS):
+            resp = self.get_question_response(contact, body)
+        elif any(body.startswith(prefix) for prefix in VULGARITIES):
+            resp = self.get_vulgar_response(contact, body)
 
         return resp
 
