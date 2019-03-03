@@ -1,9 +1,11 @@
 from email.parser import HeaderParser
+import logging
 import imaplib
+
+logger = logging.getLogger(__name__)
 
 class Mail:
     def __init__(self, conf):
-        print(conf)
         self.imap = imaplib.IMAP4_SSL(conf['imap_server'], 993)
         self.imap.login(conf['user'], conf['password'])
 

@@ -1,6 +1,10 @@
 import time
+import logging
+
 from . import User, Contact
 from .base_module import BaseModule
+
+logger = logging.getLogger(__name__)
 
 class CommandModule(BaseModule):
     def __init__(self, *args, **kwargs):
@@ -85,8 +89,8 @@ class CommandModule(BaseModule):
 
     def handle_messages(self, messages):
         for message in messages:
-            print(message)
             src = message['from']
+            logger.info("Received {} from {}".format(message, src))
             contact = self.session.query(Contact).filter(Contact.data == src).first()
             if not contact:
                 contact = Contact(src)
@@ -96,11 +100,11 @@ class CommandModule(BaseModule):
             body = message['text'].lower()
             resp = self.get_message_response(contact, body)
             if resp:
-                print("Sending {} to {}".format(resp, src))
+                logger.info("Sending {} to {}".format(resp, src))
                 contact.send_sms(self.phone, src, resp)
     
     def run(self):
-        print('Starting CommandModule')
+        logger.info('Starting CommandModule')
         self.session = self.Session()
         while True and self.process:
             messages = self.phone.get_unread_messages()
@@ -110,6 +114,6 @@ class CommandModule(BaseModule):
         self.Session.remove()
 
     def stop(self):
-        print('CommandModule received stop request')
+        logger.info('CommandModule received stop request')
         self.process = False
 

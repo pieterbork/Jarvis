@@ -1,6 +1,10 @@
 from threading import Thread
-from . import User, Contact
+import logging
 import time
+
+from . import User, Contact
+
+logger = logging.getLogger(__name__)
 
 class BaseModule(Thread):
     def __init__(self, conf):
@@ -12,13 +16,13 @@ class BaseModule(Thread):
 
     def create_user(self, name, contact):
         if not contact.user:
-            print("Creation user for {}".format(name))
+            logger.info("Creation user for {}".format(name))
             user = User(name=name)
             user.contacts.append(contact)
             self.session.add(user)
             self.session.commit()
         else:
-            print("User already exists...")
+            logger.info("User already exists...")
 
     def create_contact(self, data):
         contact = Contact(data=data)
@@ -38,5 +42,5 @@ class BaseModule(Thread):
         pass
 
     def stop(self):
-        print('Module received stop request')
+        logger.info('Module received stop request')
         self.process = False

@@ -1,8 +1,11 @@
 from threading import Thread
+import logging
 import time
 
 from . import User, Contact
 from .base_module import BaseModule
+
+logger = logging.getLogger(__name__)
 
 class PaymentTrackingModule(BaseModule):
     def __init__(self, conf):
@@ -11,10 +14,9 @@ class PaymentTrackingModule(BaseModule):
         self.mailbox = conf['mailbox']
         self.phone = conf['phone']
         self.process = True
-        #self.run()
 
     def run(self):
-        print('Starting PaymentTrackingModule')
+        logger.info('Starting PaymentTrackingModule')
         while True and self.process:
             msgs = self.mailbox.get_unread_messages()
             for msg in msgs:
@@ -33,7 +35,7 @@ class PaymentTrackingModule(BaseModule):
                 name = parts[0].strip()
                 amount = float(parts[1].replace('$',''))
 
-                print("Received {} from {}.".format(amount, name))
+                logger.info("Received {} from {}.".format(amount, name))
             time.sleep(5)
 #            if name in people:
 #                person = people[name]
@@ -47,5 +49,5 @@ class PaymentTrackingModule(BaseModule):
 #                    else:
 #                        print('o fukk')
     def stop(self):
-        print('PaymentTrackingModule received stop request')
+        logger.info('PaymentTrackingModule received stop request')
         self.process = False

@@ -1,7 +1,9 @@
 from googlevoice import Voice, settings
+import logging
 import time
 import bs4
 
+logger = logging.getLogger(__name__)
 
 class Phone:
     def __init__(self, conf):
@@ -35,11 +37,6 @@ class Phone:
         self.voice.sms()
         return self.extractsms()
 
-    def list_folders(self):
-        folder = self.voice.search('all')
-        for i in folder.messages:
-            print(i, i.phoneNumber, i.type)
-
     def get_unread_ids(self):
         unread_ids = []
         for msg in self.voice.sms().messages:
@@ -56,11 +53,4 @@ class Phone:
             if msg['id'] in unread_ids and messages[index+1]['id'] != msg['id']:
                 unread_msgs.append(msg)
         return unread_msgs
-
-    def print_feeds(self):
-        for feed in settings.FEEDS:
-            print(feed.title())
-            for msg in getattr(self.voice, feed)().messages:
-                print(msg)
-
 
