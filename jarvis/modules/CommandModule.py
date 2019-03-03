@@ -1,48 +1,8 @@
-from threading import Thread
-from models import User, Contact
 import time
+from .BaseModule import BaseModule
+from . import User, Contact
 
-class Module(Thread):
-    def __init__(self, conf):
-        Thread.__init__(self)
-        self.schedule = conf['schedule']
-        self.phone = conf['phone']
-        self.Session = conf['shared_session']
-        self.process = True
-
-    def create_user(self, name, contact):
-        if not contact.user:
-            print("Creation user for {}".format(name))
-            user = User(name=name)
-            user.contacts.append(contact)
-            self.session.add(user)
-            self.session.commit()
-        else:
-            print("User already exists...")
-
-    def create_contact(self, data):
-        contact = Contact(data=data)
-        self.session.add(contact)
-        self.session.commit()
-
-    def set_last(self, contact, last):
-        contact.last = last
-        self.session.commit()
-
-    def set_alias(self, user, alias):
-        user.alias = alias
-        self.session.commit()
-
-    def run(self):
-        #Overwrite me!
-        pass
-
-    def stop(self):
-        print('Module received stop request')
-        self.process = False
-
-
-class CommandModule(Module):
+class CommandModule(BaseModule):
     def __init__(self, *args, **kwargs):
         super(self.__class__, self).__init__(*args, **kwargs)
 
@@ -93,14 +53,16 @@ class CommandModule(Module):
 
         if contact.user:
             if name.title() == contact.user.name:
-                resp = "Yes, yes it is."
+                resp = "I already know that."
+                self.set_last(contact, 'yes')
             else:
                 resp = "I don't think so..."
+                self.set_last(contact, 'no')
         else:
             self.create_user(name, contact)
+            resp = "Hi {}".format(name.title())
+            self.set_last(contact, 'hi')
 
-        resp = "Hi {}".format(name.title())
-        self.set_last(contact, 'hi')
         return resp
 
     def get_message_response(self, contact, body):
@@ -147,51 +109,4 @@ class CommandModule(Module):
     def stop(self):
         print('CommandModule received stop request')
         self.process = False
-
-class PaymentTrackingModule(Thread):
-    def __init__(self, conf):
-        Thread.__init__(self)
-        self.schedule = conf['schedule']
-        self.mailbox = conf['mailbox']
-        self.phone = conf['phone']
-        self.process = True
-        #self.run()
-
-    def run(self):
-        print('Starting PaymentTrackingModule')
-        while True and self.process:
-            msgs = self.mailbox.get_unread_messages()
-            for msg in msgs:
-                sub = msg['Subject'].replace('Fwd: ', '')
-
-                if 'paid you' in sub:
-                    platform = "venmo"
-                    selector = 'paid you'
-                elif 'sent you' in sub:
-                    platform = "zelle"
-                    selector = 'sent you'
-                else:
-                    continue
-
-                parts = sub.split(selector)
-                name = parts[0].strip()
-                amount = float(parts[1].replace('$',''))
-
-                print("Received {} from {}.".format(amount, name))
-            time.sleep(5)
-#            if name in people:
-#                person = people[name]
-#                for payment in person['payments']:
-#                    print(payment)
-#                    if payment['amount'] == amount:
-#                        print("Payment of {} from {} matches expected amount.".format(amount, name))
-#                        msg = generate_message(person['name'], 'thanks')
-#                        send_text(person['contact'], msg)
-#                        break
-#                    else:
-#                        print('o fukk')
-    def stop(self):
-        print('PaymentTrackingModule received stop request')
-        self.process = False
-
 

@@ -1,5 +1,6 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
+import argparse
 import modules
 import time
 import yaml
@@ -7,6 +8,7 @@ import yaml
 from models import Base
 from mail import Mail
 from phone import Phone
+from modules import *
 
 class config:
     def from_dict(self, di):
@@ -20,8 +22,8 @@ class config:
         return self
 
 class Jarvis:
-    def __init__(self):
-        self.config = config().from_file('jarvis.cfg')
+    def __init__(self, args):
+        self.config = config().from_file(args.config)
         self.modules = self.config.modules
         self.mail = Mail(self.config.mail)
         self.phone = Phone(self.config.phone)
@@ -32,11 +34,14 @@ class Jarvis:
 
     def run_modules(self):
         try:
+            print(self.modules)
             for module, attrs in self.modules.items():
                 attrs['mailbox'] = self.mail
                 attrs['phone'] = self.phone
                 attrs['shared_session'] = self.Session
+                print(modules, module)
                 mod_func = getattr(modules, module)
+                print(mod_func)
                 t = mod_func(attrs)
                 t.start()
                 self.threads.append(t)
@@ -48,8 +53,16 @@ class Jarvis:
                 thread.stop()
             for thread in self.threads:
                 thread.join()
-        except:
-            print("Unhandled exception")
+        except Exception as e:
+            print("Unhandled exception: {}".format(e))
 
-j = Jarvis()
-j.run_modules()
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--config', '-c', help="Path for jarvis.cfg file.")
+    args = parser.parse_args()
+
+    j = Jarvis(args)
+    j.run_modules()
+
+if __name__ == "__main__":
+    main()
