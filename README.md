@@ -40,6 +40,9 @@ get joke
 set alias <alias>
 ```
 
+### Issues
+Unfortunately, because google voice has no official API, XML Parsing to retrieve sms messages is necessary and is currently done with https://github.com/jaraco/googlevoice. Parsing seems to break whenever a non-utf8 character is included in an sms message and must be deleted before jarvis can continue. 
+
 ## Contributing
 
 Pull requests welcome
