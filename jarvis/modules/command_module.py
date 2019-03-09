@@ -148,6 +148,7 @@ class CommandModule(BaseModule):
         logger.info('Starting CommandModule')
         self.session = self.Session()
         while True and self.process:
+            logger.info('Checking messages.')
             messages = self.phone.get_unread_messages()
             if messages:
                 self.handle_messages(messages)

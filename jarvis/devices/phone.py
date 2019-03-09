@@ -34,12 +34,24 @@ class Phone:
         return msgitems
 
     def get_sms(self):
-        self.voice.sms()
+        try:
+            self.voice.sms()
+        except Exception as e:
+            logger.exception('Unhandled exception in get_sms')
+            return None
         return self.extractsms()
 
     def get_unread_ids(self):
         unread_ids = []
-        for msg in self.voice.sms().messages:
+        try:
+            msgs = self.voice.sms().messagess
+        except JsonError as e:
+            logger.exception('Caught JsonError')
+            return None
+        except Exception as e:
+            logger.exception('Unhandled error getting messages.')
+
+        for msg in msgs:
             if not msg.isRead and msg.id not in unread_ids:
                 unread_ids.append(msg.id)
                 msg.mark()
