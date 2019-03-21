@@ -30,6 +30,7 @@ class CommandModule(BaseModule):
 
     def get_set_response(self, contact, parts):
         resp = None
+        parts_len = len(parts)
         if parts_len > 2 and parts[1] == 'alias':
             alias = parts[2].title()
             self.set_alias(contact.user, alias)
