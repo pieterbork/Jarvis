@@ -4,6 +4,7 @@ import argparse
 import logging
 import time
 import yaml
+import os
 
 from .models import Base
 from .devices import *
@@ -16,9 +17,14 @@ class config:
     def from_dict(self, di):
         for key, value in di.items():
             setattr(self, key, value)
+        return self
 
     def from_file(self, path):
-        with open(path) as fp:
+        print(path)
+        if not os.path.isfile(path):
+            logger.error("File not found {}".format(path))
+            raise FileNotFoundError
+        with open(path, 'r') as fp:
             data = yaml.load(fp)
         self.from_dict(data)
         return self
@@ -30,6 +36,9 @@ class Jarvis:
         self.mail = Mail(self.config.mail)
         self.phone = Phone(self.config.phone)
         self.threads = []
+        self.db_path = self.config.db['path']
+        if not os.path.isfile(self.db_path):
+            open(self.db_path, 'w').close()
         self.engine = create_engine('sqlite:///{}'.format(self.config.db['path']))
         self.Session = scoped_session(sessionmaker(bind=self.engine))
         Base.metadata.create_all(self.engine)
@@ -58,7 +67,7 @@ class Jarvis:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', '-c', help="Path for jarvis.cfg file.")
+    parser.add_argument('--config', '-c', help="Path for jarvis.cfg file.", required=True)
     args = parser.parse_args()
 
     j = Jarvis(args)

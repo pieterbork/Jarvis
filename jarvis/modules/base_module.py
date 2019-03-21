@@ -11,6 +11,7 @@ class BaseModule(Thread):
         Thread.__init__(self)
         self.schedule = conf['schedule']
         self.phone = conf['phone']
+        self.mail = conf['mailbox']
         self.Session = conf['shared_session']
         self.process = True
 

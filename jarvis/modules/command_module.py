@@ -2,12 +2,12 @@ import time
 import json
 import logging
 import requests
+import base64
 
 from . import *
 from .base_module import BaseModule
 
 logger = logging.getLogger(__name__)
-
 
 class CommandModule(BaseModule):
     def __init__(self, *args, **kwargs):
@@ -25,7 +25,7 @@ class CommandModule(BaseModule):
                 resp = cat["file"]
             elif parts[1] == 'joke':
                 joke = json.loads(requests.get(JOKE_URL, headers={'Accept': 'application/json'}).text)
-                resp = joke['joke']
+                resp = joke['joke'].decode()
         return resp
 
     def get_set_response(self, contact, parts):
@@ -112,6 +112,9 @@ class CommandModule(BaseModule):
 
     def get_message_response(self, contact, body):
         resp = None
+
+        #modules
+        #return '\xf0\x9f\x8d\x86'
         
         if any(body.startswith(prefix) for prefix in COMMANDS):
             resp = self.get_command_response(contact, body)
@@ -130,16 +133,40 @@ class CommandModule(BaseModule):
 
     def handle_messages(self, messages):
         for message in messages:
-            src = message['from']
-            logger.info("Received {} from {}".format(message, src))
+            resp = None
+            src = '1' + message['From'][:15].replace(') ', '').replace('-', '').strip('("')
+            payload = message.get_payload()
+            body_parts = payload.splitlines()
+            if 'base64' in payload:
+                start = body_parts.index('Content-Transfer-Encoding: base64')
+                for index, part in enumerate(body_parts[start:]):
+                    if part.startswith('--'):
+                        end = index
+                        break
+
+                body = ''.join(body_parts[start+2:end])
+                payload = base64.b64decode(body)
+                print(payload)
+                resp = '\xf0\x9f\x8d\x86'
+
+            body_parts = payload.splitlines()
+            try:
+                start = body_parts.index('<https://voice.google.com>')
+                end = body_parts.index('YOUR ACCOUNT <https://voice.google.com> HELP CENTER')
+                body = body_parts[start+1:end]
+                body = body[0].lower()
+            except:
+                continue
+
+            logger.info("Received {} from {}".format(body, src))
             contact = self.session.query(Contact).filter(Contact.data == src).first()
             if not contact:
                 contact = Contact(src)
                 self.session.add(contact)
                 self.session.commit()
-                
-            body = message['text'].lower()
-            resp = self.get_message_response(contact, body)
+            
+            if not resp:
+                resp = self.get_message_response(contact, body)
             if resp:
                 logger.info("Sending {} to {}".format(resp, src))
                 contact.send_sms(self.phone, src, resp)
@@ -149,7 +176,7 @@ class CommandModule(BaseModule):
         self.session = self.Session()
         while True and self.process:
             logger.info('Checking messages.')
-            messages = self.phone.get_unread_messages()
+            messages = self.mail.get_unread_messages()
             if messages:
                 self.handle_messages(messages)
             time.sleep(2)
