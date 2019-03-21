@@ -175,7 +175,7 @@ class CommandModule(BaseModule):
         logger.info('Starting CommandModule')
         self.session = self.Session()
         while True and self.process:
-            logger.info('Checking messages.')
+            logger.debug('Checking messages.')
             messages = self.mail.get_unread_messages()
             if messages:
                 self.handle_messages(messages)
