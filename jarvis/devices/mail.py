@@ -11,12 +11,22 @@ class Mail:
 
     def get_unread_messages(self):
         msgs = []
-        self.imap.select('INBOX')
+        try:
+            self.imap.select('INBOX')
+        except Exception as e:
+            logger.exception("Exception getting inbox: {}".format(e))
+            return msgs
+
         status, response = self.imap.search(None, '(UNSEEN)')
         for m in response[0].split():
-            parser = HeaderParser()
-            data = self.imap.fetch(m, '(RFC822)')[1][0][1]
-            msg = parser.parsestr(data)
-            msgs.append(msg)
+            try:
+                parser = HeaderParser()
+                data = self.imap.fetch(m, '(RFC822)')[1][0][1]
+                msg = parser.parsestr(data)
+                msgs.append(msg)
+            except Exception as e:
+                logger.exception("Exception parsing message: {}".format(e))
+                continue
+
         return msgs
     
