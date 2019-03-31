@@ -1,8 +1,9 @@
+import datetime
+import requests
+import logging
+import base64
 import time
 import json
-import logging
-import requests
-import base64
 
 from . import *
 from .base_module import BaseModule
@@ -13,19 +14,38 @@ class CommandModule(BaseModule):
     def __init__(self, *args, **kwargs):
         super(self.__class__, self).__init__(*args, **kwargs)
 
+    def get_cat(self):
+        r = requests.get(CAT_URL)
+        cat = json.loads(r.text)
+        resp = cat["file"]
+        return resp
+
+    def get_pug(self):
+        r = requests.get(PUGME_URL)
+        pug = json.loads(r.text)
+        resp = pug["pug"]
+        return resp
+
+    def get_dad_joke(self):
+        try:
+            r = requests.get(JOKE_URL, headers={'Accept': 'application/json'})
+            joke = json.loads(r.text)
+            resp = joke['joke'].decode()
+        except Exception as e:
+            logger.exception("Error parsing joke {}".format(joke))
+            resp = joke
+        return resp
+
     def get_get_response(self, contact, parts):
         resp = None
         parts_len = len(parts)
         if parts_len > 1:
             if parts[1] == 'pug':
-                pug = json.loads(requests.get(PUGME_URL).text)
-                resp = pug["pug"]
+                resp = self.get_pug()
             elif parts[1] == 'cat':
-                cat = json.loads(requests.get(CAT_URL).text)
-                resp = cat["file"]
+                resp = self.get_cat()
             elif parts[1] == 'joke':
-                joke = json.loads(requests.get(JOKE_URL, headers={'Accept': 'application/json'}).text)
-                resp = joke['joke'].decode()
+                resp = self.get_dad_joke()
         return resp
 
     def get_set_response(self, contact, parts):
@@ -176,6 +196,7 @@ class CommandModule(BaseModule):
         logger.info('Starting CommandModule')
         self.session = self.Session()
         while True and self.process:
+            self.heartbeat = datetime.datetime.now()
             logger.debug('Checking messages.')
             messages = self.mail.get_unread_messages()
             if messages:

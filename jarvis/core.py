@@ -1,5 +1,6 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
+import datetime
 import argparse
 import logging
 import time
@@ -41,6 +42,7 @@ class Jarvis:
             open(self.db_path, 'w').close()
         self.engine = create_engine('sqlite:///{}'.format(self.config.db['path']))
         self.Session = scoped_session(sessionmaker(bind=self.engine))
+        logger.setLevel(self.config.logging['level'])
         Base.metadata.create_all(self.engine)
 
     def run_modules(self):
@@ -55,6 +57,8 @@ class Jarvis:
                 t.start()
                 self.threads.append(t)
             while True:
+                for t in self.threads:
+                    logger.debug("Heartbeat for {} was {}s ago".format(t, (datetime.datetime.now()-t.heartbeat).seconds))
                 time.sleep(3)
         except KeyboardInterrupt:
             logger.exception("Ctrl+C, RIP threads.")

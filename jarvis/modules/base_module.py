@@ -1,4 +1,5 @@
 from threading import Thread
+import datetime
 import logging
 import time
 
@@ -13,6 +14,7 @@ class BaseModule(Thread):
         self.phone = conf['phone']
         self.mail = conf['mailbox']
         self.Session = conf['shared_session']
+        self.heartbeat = datetime.datetime.now()
         self.process = True
 
     def create_user(self, name, contact):
