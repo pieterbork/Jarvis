@@ -1,5 +1,6 @@
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
+from sqlalchemy import create_engine
+from queue import Queue
 import datetime
 import argparse
 import logging
@@ -8,7 +9,6 @@ import yaml
 import os
 
 from .models import Base
-from .devices import *
 from .modules import *
 
 logging.basicConfig(level=logging.INFO)
@@ -34,8 +34,7 @@ class Jarvis:
     def __init__(self, args):
         self.config = config().from_file(args.config)
         self.modules = self.config.modules
-        self.mail = Mail(self.config.mail)
-        self.phone = Phone(self.config.phone)
+        self.message_q = Queue()
         self.threads = []
         self.db_path = self.config.db['path']
         if not os.path.isfile(self.db_path):
@@ -48,20 +47,24 @@ class Jarvis:
     def run_modules(self):
         try:
             for module, attrs in self.modules.items():
-                attrs['mailbox'] = self.mail
-                attrs['phone'] = self.phone
-                attrs['shared_session'] = self.Session
+                attrs['session'] = self.Session
+                attrs['message_q'] = self.message_q
                 mod_func = globals()[module]
                 logger.info("Launching {}".format(module))
                 t = mod_func(attrs)
                 t.start()
                 self.threads.append(t)
             while True:
+                m = self.message_q.get()
+                logger.info("Distributing message to consumers: {}".format(m))
                 for t in self.threads:
-                    logger.debug("Heartbeat for {} was {}s ago".format(t, (datetime.datetime.now()-t.heartbeat).seconds))
-                time.sleep(3)
+                    if t.message_consumer:
+                        t.process_message(m)
+                self.message_q.task_done()
+                    #logger.debug("Heartbeat for {} was {}s ago".format(t, (datetime.datetime.now()-t.heartbeat).seconds))
+                time.sleep(.5)
         except KeyboardInterrupt:
-            logger.exception("Ctrl+C, RIP threads.")
+            logger.info("Ctrl+C, RIP threads.")
             for thread in self.threads:
                 thread.stop()
             for thread in self.threads:

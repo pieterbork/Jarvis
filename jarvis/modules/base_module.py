@@ -11,10 +11,9 @@ class BaseModule(Thread):
     def __init__(self, conf):
         Thread.__init__(self)
         self.schedule = conf['schedule']
-        self.phone = conf['phone']
-        self.mail = conf['mailbox']
-        self.Session = conf['shared_session']
+        self.Session = conf['session']
         self.heartbeat = datetime.datetime.now()
+        self.message_consumer = True
         self.process = True
 
     def create_user(self, name, contact):
@@ -39,6 +38,10 @@ class BaseModule(Thread):
     def set_alias(self, user, alias):
         user.alias = alias
         self.session.commit()
+
+    def process_message(self):
+        #Overwrite me!
+        pass
 
     def run(self):
         #Overwrite me!

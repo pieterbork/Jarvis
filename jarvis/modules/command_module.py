@@ -191,17 +191,18 @@ class CommandModule(BaseModule):
             if resp:
                 logger.info("Sending {} to {}".format(resp, src))
                 contact.send_sms(self.phone, src, resp)
+
+    def process_message(self, m):
+        print("Command is {}".format(m))
+        print("fuck m!")
     
     def run(self):
         logger.info('Starting CommandModule')
         self.session = self.Session()
         while True and self.process:
             self.heartbeat = datetime.datetime.now()
-            logger.debug('Checking messages.')
-            messages = self.mail.get_unread_messages()
-            if messages:
-                self.handle_messages(messages)
-            time.sleep(2)
+            time.sleep(1)
+
         self.Session.remove()
 
     def stop(self):
