@@ -152,46 +152,6 @@ class CommandModule(BaseModule):
 
         return resp
 
-    def handle_messages(self, messages):
-        for message in messages:
-            resp = None
-            src = '1' + message['From'][:15].replace(') ', '').replace('-', '').strip('("')
-            payload = message.get_payload()
-            body_parts = payload.splitlines()
-            if 'base64' in payload:
-                start = body_parts.index('Content-Transfer-Encoding: base64')
-                for index, part in enumerate(body_parts[start:]):
-                    if part.startswith('--'):
-                        end = index
-                        break
-
-                body = ''.join(body_parts[start+2:end])
-                payload = base64.b64decode(body)
-                print(payload)
-                resp = '\xf0\x9f\x8d\x86'
-
-            body_parts = payload.splitlines()
-            try:
-                start = body_parts.index('<https://voice.google.com>')
-                end = body_parts.index('YOUR ACCOUNT <https://voice.google.com> HELP CENTER')
-                body = body_parts[start+1:end]
-                body = body[0].lower()
-            except:
-                continue
-
-            logger.info("Received {} from {}".format(body, src))
-            contact = self.session.query(Contact).filter(Contact.data == src).first()
-            if not contact:
-                contact = Contact(src)
-                self.session.add(contact)
-                self.session.commit()
-            
-            if not resp:
-                resp = self.get_message_response(contact, body)
-            if resp:
-                logger.info("Sending {} to {}".format(resp, src))
-                contact.send_sms(src, resp)
-
     def process_message(self, m):
         src = m.src
         body = m.body
@@ -202,7 +162,7 @@ class CommandModule(BaseModule):
             self.session.add(contact)
             self.session.commit()
         
-        resp = self.get_message_response(contact, body)
+        resp = self.get_message_response(contact, body.lower())
         if resp:
             logger.info("Sending {} to {}".format(resp, src))
             contact.send_sms(src, resp)

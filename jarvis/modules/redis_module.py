@@ -21,11 +21,11 @@ class RedisModule(BaseModule):
         self.message_q = conf["message_q"]
         self.client = redis.Redis(host='redis', port=6379, db=0)
         self.pubsub = self.client.pubsub()
-        self.stopped = False
+        self.process = True
 
     def run(self):
         self.pubsub.subscribe('messages')
-        while True and not self.stopped:
+        while True and self.process:
             msg = self.pubsub.get_message()
             if msg:
                 logger.info("Redis message: {}".format(msg))
@@ -39,5 +39,5 @@ class RedisModule(BaseModule):
 
     def stop(self):
         logger.info('{} received stop request'.format(self.__name__))
-        self.stopped = True
+        self.process = False
 
