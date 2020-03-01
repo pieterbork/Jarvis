@@ -9,6 +9,7 @@ stop() {
 }
 
 entrypoint() {
+  ls -al /signal/.storage/identity
   if [ -f /signal/.storage/identity/identity_key ]; then
     start
   else
@@ -16,7 +17,7 @@ entrypoint() {
   fi
 }
 
-sudo chown -R 2003:2003 .storage .config
+sudo chown -R signal:signal .storage .config
 
 if [ ! -z "$1" ]; then
   case "$1" in

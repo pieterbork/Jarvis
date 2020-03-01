@@ -18,13 +18,15 @@ services:
     ports:
       - 127.0.0.1:5000:5000
     volumes:
-      - config:/signal/.config
-      - storage:/signal/.storage
+      - signal-web-gateway_config:/signal/.config
+      - signal-web-gateway_storage:/signal/.storage
     links:
       - "redis:redis"
   redis:
     container_name: redis
     image: redis:latest
 volumes:
-  config:
-  storage:
+  signal-web-gateway_config:
+    external: true
+  signal-web-gateway_storage:
+    external: true
