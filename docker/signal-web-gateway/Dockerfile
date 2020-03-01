@@ -21,8 +21,8 @@ COPY entrypoint.sh /
 RUN apk --no-cache add \
       ca-certificates \
       sudo \
-    && addgroup signal \
-    && adduser -G signal -h /signal -s /bin/sh -D signal \
+    && addgroup -g 2003 signal \
+    && adduser -u 2003 -G signal -h /signal -s /bin/sh -D signal \
     && echo "%signal ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/signal \
     && chmod 400 /etc/sudoers.d/signal \
     && apk --no-cache add \

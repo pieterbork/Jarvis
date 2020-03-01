@@ -30,10 +30,10 @@ class CommandModule(BaseModule):
         try:
             r = requests.get(JOKE_URL, headers={'Accept': 'application/json'})
             joke = json.loads(r.text)
-            resp = joke['joke'].decode()
+            resp = joke['joke']
         except Exception as e:
             logger.exception("Error parsing joke {}".format(joke))
-            resp = joke
+            resp = 'Sorry, there was an error getting your joke...'
         return resp
 
     def get_get_response(self, contact, parts):
@@ -107,7 +107,7 @@ class CommandModule(BaseModule):
                 resp = "I already know that."
                 self.set_last(contact, 'yes')
             else:
-                resp = "I don't think so..."
+                resp = "I don't think so, {}.".format(contact.user.name)
                 self.set_last(contact, 'no')
         else:
             self.create_user(name, contact)
