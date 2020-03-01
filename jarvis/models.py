@@ -1,6 +1,7 @@
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
+import json
 
 Base = declarative_base()
 
@@ -52,8 +53,11 @@ class Contact(Base):
 
 class Message:
     def __init__(self, message_str):
+        print("new message?! cool!")
         try:
+            print(message_str)
             j = json.loads(message_str)
+            print(j)
             self.src = j['To']
             self.body = j['Body']
         except Exception as e:

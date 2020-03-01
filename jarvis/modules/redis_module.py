@@ -31,7 +31,7 @@ class RedisModule(BaseModule):
                 logger.info("Redis message: {}".format(msg))
                 if msg['type'] == 'message':
                     data = msg['data'].decode()
-                    logger.info("Parsing message: {}".format(data))
+                    logger.info("Parsing message: {} of type {}".format(data, type(data)))
                     m = Message(data)
                     logger.info("Placing {} on message queue!".format(m))
                     self.message_q.put(m)
