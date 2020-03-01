@@ -193,8 +193,21 @@ class CommandModule(BaseModule):
                 contact.send_sms(src, resp)
 
     def process_message(self, m):
-        print("Command is {}".format(m))
-        print("fuck m!")
+        src = m.src
+        body = m.body
+        logger.info("Command is {}".format(body))
+        contact = self.session.query(Contact).filter(Contact.data == src).first()
+        if not contact:
+            contact = Contact(src)
+            self.session.add(contact)
+            self.session.commit()
+        
+        resp = self.get_message_response(contact, body)
+        if resp:
+            logger.info("Sending {} to {}".format(resp, src))
+            contact.send_sms(src, resp)
+        else:
+            logger.info("Couldn't figure out a response...")
     
     def run(self):
         logger.info('Starting CommandModule')

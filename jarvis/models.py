@@ -50,21 +50,15 @@ class Contact(Base):
                 .format(self.data, self.incoming, self.outgoing)
 
 
-#class Message(Base):
-#    __tablename__ = 'messages'
-#
-#    id = Column(Integer, primary_key=True)
-#    body = Column(String)
-#    direction = Column(Integer) #direction is 0 if incoming, 1 if outgoing
-#    contact_id = Column(Integer, ForeignKey('contacts.id'))
-#
-#    def __init__(self, body, direction):
-#        self.body = body
-#        self.direction = direction
-#
-#    def __repr__(self):
-#        return "<Message(body='{}', user_id='{}')>"\
-#                .format(self.body, self.payment_id, self.user_id)
+class Message:
+    def __init__(self, message_str):
+        j = json.loads(message_str)
+        self.src = j['To']
+        self.body = j['Body']
+
+    def __repr__(self):
+        return "<Message(src='{}', body='{}')>"\
+                .format(self.src, self.body)
 
 
 #class RecurringPayment(Base):
