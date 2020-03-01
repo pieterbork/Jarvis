@@ -190,7 +190,7 @@ class CommandModule(BaseModule):
                 resp = self.get_message_response(contact, body)
             if resp:
                 logger.info("Sending {} to {}".format(resp, src))
-                contact.send_sms(self.phone, src, resp)
+                contact.send_sms(src, resp)
 
     def process_message(self, m):
         print("Command is {}".format(m))
