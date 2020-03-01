@@ -28,7 +28,7 @@ class RedisModule(BaseModule):
         while True and not self.stopped:
             msg = self.pubsub.get_message()
             if msg:
-                logger.info("Parsing message...")
+                logger.info("Parsing message: {}".format(msg))
                 m = Message(msg)
                 logger.info("Placing {} on message queue!".format(m))
                 self.message_q.put(m)
