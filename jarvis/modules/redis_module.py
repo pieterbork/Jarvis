@@ -19,7 +19,7 @@ class RedisModule(BaseModule):
         self.__name__ = "RedisModule"
         self.message_consumer = False
         self.message_q = conf["message_q"]
-        self.client = redis.Redis(host='localhost', port=6379, db=0)
+        self.client = redis.Redis(host='redis', port=6379, db=0)
         self.pubsub = self.client.pubsub()
         self.stopped = False
 
