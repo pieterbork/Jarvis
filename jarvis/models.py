@@ -52,9 +52,12 @@ class Contact(Base):
 
 class Message:
     def __init__(self, message_str):
-        j = json.loads(message_str)
-        self.src = j['To']
-        self.body = j['Body']
+        try:
+            j = json.loads(message_str)
+            self.src = j['To']
+            self.body = j['Body']
+        except Exception as e:
+            print(e)
 
     def __repr__(self):
         return "<Message(src='{}', body='{}')>"\
