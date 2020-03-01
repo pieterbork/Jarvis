@@ -1,10 +1,30 @@
-version: '3.6'
+version: "3"
+
 services:
   jarvis:
-    build: .
     container_name: jarvis
+    image: jarvis
+    build: .
+    links:
+      - "signal-gateway:signal"
+      - "redis:redis"
     volumes:
-      - /data/jarvis/jarvis.cfg:/etc/jarvis/jarvis.cfg
-      - /data/jarvis/jarvis.db:/etc/jarvis/jarvis.db
-    restart:
-      always
+        - /data/jarvis/jarvis.cfg:/etc/jarvis/jarvis.cfg
+        - /data/jarvis/jarvis.db:/etc/jarvis/jarvis.db 
+  signal-gateway:
+    container_name: signal-web-gateway
+    image: signal-web-gateway
+    build: ./signal-web-gateway
+    ports:
+      - 127.0.0.1:5000:5000
+    volumes:
+      - config:/signal/.config
+      - storage:/signal/.storage
+    links:
+      - "redis:redis"
+  redis:
+    container_name: redis
+    image: redis:latest
+volumes:
+  config:
+  storage:
