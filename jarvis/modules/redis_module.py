@@ -1,4 +1,3 @@
-import cherrypy
 import datetime
 import requests
 import logging
