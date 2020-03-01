@@ -35,8 +35,8 @@ class Contact(Base):
         self.incoming = 1
         self.outgoing = 0
 
-    def send_sms(self, phone, dst, msg):
-        phone.send_sms(dst, msg)
+    def send_sms(self, dst, msg):
+        requests.post('http://signal:5000', data={'to': dst, 'message': msg})
         self.increment_outgoing()
 
     def increment_incoming(self):
