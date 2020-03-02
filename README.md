@@ -48,7 +48,7 @@ set alias <alias>
 
 ## Issues
 
-Currently, textsecure has multiple references to github.com/agl/ed25519 which no longer exists. I've mirrored the project here: github.com/agl/ed25519 and use my own version of textsecure here: https://github.com/pieterbork/textsecure to publish all messages to redis so Jarvis can retrieve them. This isn't really an issue, but something I want to change eventually once they update go references to the new repo for ed25519: https://github.com/golang/crypto/tree/master/ed25519.
+Currently, textsecure has multiple references to github.com/agl/ed25519 which no longer exists. I've mirrored the project here: https://github.com/pieterbork/ed25519 and use my own version of textsecure here: https://github.com/pieterbork/textsecure to publish all messages to redis so Jarvis can retrieve them. This isn't really an issue, but something I want to change eventually once they update go references to the new repo for ed25519: https://github.com/golang/crypto/tree/master/ed25519.
 
 ## Contributing
 
