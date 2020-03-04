@@ -15,8 +15,6 @@ services:
     container_name: signal-web-gateway
     image: signal-web-gateway
     build: ./signal-web-gateway
-    ports:
-      - 127.0.0.1:5000:5000
     volumes:
       - signal-web-gateway_config:/signal/.config
       - signal-web-gateway_storage:/signal/.storage
