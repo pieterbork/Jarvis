@@ -1,53 +1,60 @@
 from threading import Thread
+import datetime
 import logging
 import time
 
-from . import User, Contact
+from . import User, Contact, Payment
 from .base_module import BaseModule
 
 logger = logging.getLogger(__name__)
 
+class PaymentMessage:
+    def __init__(self, name, amount, platform):
+        self.name = name
+        self.amount = amount
+        self.platform = platform
+
 class PaymentTrackingModule(BaseModule):
-    def __init__(self, conf):
-        Thread.__init__(self)
-        self.schedule = conf['schedule']
-        self.mailbox = conf['mailbox']
-        self.phone = conf['phone']
-        self.process = True
+    def __init__(self, *args, **kwargs):
+        super(self.__class__, self).__init__(*args, **kwargs)
+
+    def parse_msgs(self, msgs):
+        messages = []
+        for msg in msgs:
+            sub = msg['Subject'].replace('Fwd: ', '')
+
+            if 'paid you' in sub:
+                platform = "venmo"
+                selector = 'paid you'
+            elif 'sent you' in sub:
+                platform = "zelle"
+                selector = 'sent you'
+            else:
+                logger.info("Idk what this is: {}".format(sub))
+                continue
+
+            parts = sub.split(selector)
+            name = parts[0].strip()
+            amount = float(parts[1].replace('$',''))
+            m = PaymentMessage(name, amount, platform)
+            messages.append(m)
+
+        return messages
+    
+    def check_overdue_payments(self):
+        overdue_payments = self.session.query(Payment).filter(Payment.due > datetime.datetime.now()).all()
+        if overdue_payments:
+            logger.info("OVERDUE PAYMENTS DETECTED: ".format(len(overdue_payments)))
+        for payment in overdue_payments:
+            logger.info(payment)
 
     def run(self):
         logger.info('Starting PaymentTrackingModule')
         while True and self.process:
             msgs = self.mailbox.get_unread_messages()
-            for msg in msgs:
-                sub = msg['Subject'].replace('Fwd: ', '')
-
-                if 'paid you' in sub:
-                    platform = "venmo"
-                    selector = 'paid you'
-                elif 'sent you' in sub:
-                    platform = "zelle"
-                    selector = 'sent you'
-                else:
-                    continue
-
-                parts = sub.split(selector)
-                name = parts[0].strip()
-                amount = float(parts[1].replace('$',''))
-
-                logger.info("Received {} from {}.".format(amount, name))
+            messages = self.parse_msgs(msgs)
+            for m in messages:
+                print(m)
+            self.check_overdue_payments()
             time.sleep(5)
-#            if name in people:
-#                person = people[name]
-#                for payment in person['payments']:
-#                    print(payment)
-#                    if payment['amount'] == amount:
-#                        print("Payment of {} from {} matches expected amount.".format(amount, name))
-#                        msg = generate_message(person['name'], 'thanks')
-#                        send_text(person['contact'], msg)
-#                        break
-#                    else:
-#                        print('o fukk')
-    def stop(self):
-        logger.info('PaymentTrackingModule received stop request')
-        self.process = False
+

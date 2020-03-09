@@ -27,11 +27,12 @@ class Mail:
         for m in response[0].split():
             try:
                 parser = HeaderParser()
-                data = self.imap.fetch(m, '(RFC822)')[1][0][1]
-                msg = parser.parsestr(data)
+                data = self.imap.fetch(m.decode(), '(RFC822)')[1][0][1]
+                msg = parser.parsestr(data.decode())
                 msgs.append(msg)
             except Exception as e:
                 logger.exception("Exception parsing message: {}".format(e))
+                raise
                 continue
 
         return msgs

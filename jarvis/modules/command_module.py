@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 class CommandModule(BaseModule):
     def __init__(self, *args, **kwargs):
         super(self.__class__, self).__init__(*args, **kwargs)
+        self.sms_consumer = True
 
     def get_cat(self):
         r = requests.get(CAT_URL)
@@ -57,20 +58,38 @@ class CommandModule(BaseModule):
             resp = 'Your alias has been updated to {}.'.format(alias)
         return resp
 
+    def get_list_response(self, contact, parts):
+        resp = None
+        parts_len = len(parts)
+        if parts_len >= 2:
+            if parts[1] == 'contacts':
+                objects = self.session.query(Contact).all()
+            elif parts[1] == 'users':
+                objects = self.session.query(User).all()
+            else:
+                objects = []
+            resp = str(objects)
+        return resp
+
     def get_command_response(self, contact, msg):
         resp = None
         if not contact.user:
-            resp = "You can't issue commands until you have a name."
+            resp = "You can't issue commands until I know your name - try starting a conversation with 'Hi' next time."
         elif msg.startswith('help'):
             resp = "Please visit https://git.io/fhAbW for available commands."
         elif msg.startswith('ping'):
             resp = 'pong'
         else:
             parts = msg.split()
-            if parts[0] == 'set':
-                resp = self.get_set_response(contact, parts)
-            elif parts[0] == 'get':
-                resp = self.get_get_response(contact, parts)
+            if self.has_permissions(contact, parts[0]):
+                if parts[0] == 'set':
+                    resp = self.get_set_response(contact, parts)
+                elif parts[0] == 'get':
+                    resp = self.get_get_response(contact, parts)
+                elif parts[0] == 'list':
+                    resp = self.get_list_response(contact, parts)
+            else:
+                resp = "You don't have permission to use this command."
         return resp
 
     def get_greeting_response(self, contact, msg):
@@ -156,7 +175,7 @@ class CommandModule(BaseModule):
         src = m.src
         body = m.body
         logger.info("Command is {}".format(body))
-        contact = self.session.query(Contact).filter(Contact.data == src).first()
+        contact = self.session.query(Contact).filter(Contact.number == src).first()
         if not contact:
             contact = Contact(src)
             self.session.add(contact)
@@ -171,14 +190,6 @@ class CommandModule(BaseModule):
     
     def run(self):
         logger.info('Starting CommandModule')
-        self.session = self.Session()
         while True and self.process:
             self.heartbeat = datetime.datetime.now()
-            time.sleep(1)
-
-        self.Session.remove()
-
-    def stop(self):
-        logger.info('CommandModule received stop request')
-        self.process = False
-
+            time.sleep(0.5)

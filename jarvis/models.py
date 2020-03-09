@@ -11,29 +11,39 @@ class User(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String)
+    #0 is basic, 1 is trusted, 2 is admin
     alias = Column(String)
+    auth = Column(Integer)
     contacts = relationship('Contact', backref="user")
+    payments = relationship('Payment', backref="user")
 
     def __init__(self, name):
         self.name = name
+        self.auth = 0
         self.alias = None
 
+    def set_trusted(self):
+        self.auth = 1
+
+    def set_admin(self):
+        self.auth = 2
+
     def __repr__(self):
-        return "<User(name='{}', alias='{}')>"\
-                .format(self.name, self.alias)
+        return "<User(id='{}', name='{}', alias='{}', auth='{}')>"\
+                .format(self.id, self.name, self.alias, self.auth)
 
 class Contact(Base):
     __tablename__ = 'contacts'
 
     id = Column(Integer, primary_key=True)
-    data = Column(String)
+    number = Column(String)
     last = Column(String)
     incoming = Column(Integer)
     outgoing = Column(Integer)
     user_id = Column(Integer, ForeignKey('users.id'))
 
-    def __init__(self, data):
-        self.data = data
+    def __init__(self, number):
+        self.number = number
         self.incoming = 1
         self.outgoing = 0
 
@@ -48,8 +58,33 @@ class Contact(Base):
         self.outgoing += 1
 
     def __repr__(self):
-        return "<User(data='{}', incoming='{}', outgoing='{}')>"\
-                .format(self.data, self.incoming, self.outgoing)
+        return "<Contact(number='{}', incoming='{}', outgoing='{}')>"\
+                .format(self.number, self.incoming, self.outgoing)
+
+
+class Payment(Base):
+    __tablename__ = 'payments'
+
+    id = Column(Integer, primary_key=True)
+    amount = Column(String)
+    due = Column(Integer)
+    #0 is paid, 1 is unpaid, 2 is late
+    status = Column(String)
+    next_due = Column(DateTime)
+    user_id = Column(Integer, ForeignKey('users.id'))
+
+    def __init__(self, amount, due, next_due):
+        self.amount = amount
+        self.status = 1
+        self.due = due
+        self.next_due = next_due
+
+    def complete(self):
+        self.status = 0
+
+    def __repr__(self):
+        return "<Payment(amount='{}', due='{}', status='{}')>"\
+                .format(self.amount, self.due, self.status)
 
 
 class Message:
@@ -62,6 +97,25 @@ class Message:
         return "<Message(src='{}', body='{}')>"\
                 .format(self.src, self.body)
 
+class TextMessage:
+    def __init__(self, message_str):
+        j = json.loads(message_str)
+        self.src = j['To']
+        self.body = j['Body']
+
+    def __repr__(self):
+        return "<Message(src='{}', body='{}')>"\
+                .format(self.src, self.body)
+
+class EmailMessage:
+    def __init__(self, message_str):
+        j = json.loads(message_str)
+        self.src = j['To']
+        self.body = j['Body']
+
+    def __repr__(self):
+        return "<Message(src='{}', body='{}')>"\
+                .format(self.src, self.body)
 
 #class RecurringPayment(Base):
 #    __tablename__ = 'recurringpayments'

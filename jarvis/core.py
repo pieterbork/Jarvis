@@ -5,11 +5,18 @@ import datetime
 import argparse
 import logging
 import time
-import yaml
 import os
 
+from .devices import Mail
 from .models import Base
 from .modules import *
+
+#python3 has yaml builtin?
+try:
+    import yaml
+except:
+    import pyyaml
+    pass
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -33,21 +40,23 @@ class config:
 class Jarvis:
     def __init__(self, args):
         self.config = config().from_file(args.config)
+        logger.setLevel(self.config.logging['level'])
+        self.mailbox = Mail(self.config.mail)
         self.modules = self.config.modules
         self.message_q = Queue()
         self.threads = []
-        self.db_path = self.config.db['path']
-        if not os.path.isfile(self.db_path):
-            open(self.db_path, 'w').close()
-        self.engine = create_engine('sqlite:///{}'.format(self.config.db['path']))
+        self.db_path = args.database
+        logger.info("Initiating db_connection with : {}".format(self.db_path))
+        self.engine = create_engine('sqlite:///{}?{}'.format(self.db_path,"check_same_thread=false"))
         self.Session = scoped_session(sessionmaker(bind=self.engine))
-        logger.setLevel(self.config.logging['level'])
+        self.session = self.Session()
         Base.metadata.create_all(self.engine)
 
     def run_modules(self):
         try:
             for module, attrs in self.modules.items():
                 attrs['session'] = self.Session
+                attrs['mailbox'] = self.mailbox
                 attrs['message_q'] = self.message_q
                 mod_func = globals()[module]
                 logger.info("Launching {}".format(module))
@@ -56,25 +65,33 @@ class Jarvis:
                 self.threads.append(t)
             while True:
                 m = self.message_q.get()
+                src = m.src
                 logger.info("Distributing message to consumers: {}".format(m))
+                contact = self.session.query(Contact).filter(Contact.number == src).first()
+                contact.increment_incoming()
                 for t in self.threads:
-                    if t.message_consumer:
+                    if t.sms_consumer:
+                        t.process_message(m)
+                    elif t.email_consumer:
                         t.process_message(m)
                 self.message_q.task_done()
                     #logger.debug("Heartbeat for {} was {}s ago".format(t, (datetime.datetime.now()-t.heartbeat).seconds))
                 time.sleep(.5)
         except KeyboardInterrupt:
+            self.Session.remove()
             logger.info("Ctrl+C, RIP threads.")
             for thread in self.threads:
                 thread.stop()
             for thread in self.threads:
                 thread.join()
         except Exception as e:
+            self.Session.remove()
             logger.exception("Unhandled exception: {}".format(e))
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', '-c', help="Path for jarvis.cfg file.", required=True)
+    parser.add_argument('--config', '-c', help="Path for jarvis.cfg file.", default="/data/jarvis/jarvis.cfg")
+    parser.add_argument('--database', '-d', help="Path for jarvs.db file", default="/data/jarvis/jarvis.db")
     args = parser.parse_args()
 
     j = Jarvis(args)
