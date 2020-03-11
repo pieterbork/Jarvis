@@ -1,6 +1,6 @@
-from email.parser import HeaderParser
 import logging
 import imaplib
+import email
 
 logger = logging.getLogger(__name__)
 
@@ -26,9 +26,8 @@ class Mail:
         status, response = self.imap.search(None, '(UNSEEN)')
         for m in response[0].split():
             try:
-                parser = HeaderParser()
                 data = self.imap.fetch(m.decode(), '(RFC822)')[1][0][1]
-                msg = parser.parsestr(data.decode())
+                msg = email.message_from_bytes(data)
                 msgs.append(msg)
             except Exception as e:
                 logger.exception("Exception parsing message: {}".format(e))

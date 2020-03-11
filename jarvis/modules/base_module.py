@@ -14,6 +14,7 @@ class BaseModule(Thread):
         self.schedule = conf['schedule']
         self.Session = conf['session']
         self.mailbox = conf['mailbox']
+        self.schedule = conf['schedule']
         self.heartbeat = datetime.datetime.now()
         self.message_consumer = False
         self.sms_consumer = False
@@ -54,14 +55,28 @@ class BaseModule(Thread):
             return True
         return False
 
-    def process_message(self):
+    def _process_message(self, msg):
+        try:
+            self.process_message(msg)
+        except Exception as e:
+            logger.exception(e)
+
+    def process_message(self, msg):
+        #Overwrite me!
+        pass
+
+    def run_scheduled_tasks(self):
         #Overwrite me!
         pass
 
     def run(self):
-        #Overwrite me!
-        pass
+        while True and self.process:
+            now = datetime.datetime.now()
+            if now.second == 0 and now.minute % int(self.schedule) == 0:
+                logger.debug("{}: running scheduled tasks".format(self.__class__.__name__))
+                self.run_scheduled_tasks()
+            time.sleep(1)
 
     def stop(self):
-        logger.info('{} received stop request'.format(self.__class__.__name__))
+        logger.info('{}: received stop request'.format(self.__class__.__name__))
         self.process = False

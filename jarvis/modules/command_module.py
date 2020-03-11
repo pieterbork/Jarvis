@@ -66,6 +66,8 @@ class CommandModule(BaseModule):
                 objects = self.session.query(Contact).all()
             elif parts[1] == 'users':
                 objects = self.session.query(User).all()
+            elif parts[1] == 'payments':
+                objects = self.session.query(Payment).all()
             else:
                 objects = []
             resp = str(objects)
@@ -88,6 +90,8 @@ class CommandModule(BaseModule):
                     resp = self.get_get_response(contact, parts)
                 elif parts[0] == 'list':
                     resp = self.get_list_response(contact, parts)
+                elif parts[0] == 'whoami':
+                    resp = str(contact.user)
             else:
                 resp = "You don't have permission to use this command."
         return resp
@@ -184,12 +188,6 @@ class CommandModule(BaseModule):
         resp = self.get_message_response(contact, body.lower())
         if resp:
             logger.info("Sending {} to {}".format(resp, src))
-            contact.send_sms(src, resp)
+            contact.send_sms(resp)
         else:
             logger.info("Couldn't figure out a response...")
-    
-    def run(self):
-        logger.info('Starting CommandModule')
-        while True and self.process:
-            self.heartbeat = datetime.datetime.now()
-            time.sleep(0.5)

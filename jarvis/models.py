@@ -1,6 +1,7 @@
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
+from decimal import Decimal
 import requests
 import json
 
@@ -47,8 +48,8 @@ class Contact(Base):
         self.incoming = 1
         self.outgoing = 0
 
-    def send_sms(self, dst, msg):
-        requests.post('http://signal:5000', data={'to': dst, 'message': msg})
+    def send_sms(self, msg):
+        requests.post('http://signal:5000', data={'to': self.number, 'message': msg})
         self.increment_outgoing()
 
     def increment_incoming(self):
@@ -68,14 +69,16 @@ class Payment(Base):
     id = Column(Integer, primary_key=True)
     amount = Column(String)
     due = Column(Integer)
-    #0 is paid, 1 is unpaid, 2 is late
+    #0 is unpaid, 1 is paid
     status = Column(String)
     next_due = Column(DateTime)
+    notifications = Column(Integer)
     user_id = Column(Integer, ForeignKey('users.id'))
 
-    def __init__(self, amount, due, next_due):
-        self.amount = amount
-        self.status = 1
+    def __init__(self, amount, due, next_due=None):
+        self.amount = str(amount)
+        self.status = 0
+        self.notifications = 0
         self.due = due
         self.next_due = next_due
 
@@ -83,19 +86,8 @@ class Payment(Base):
         self.status = 0
 
     def __repr__(self):
-        return "<Payment(amount='{}', due='{}', status='{}')>"\
-                .format(self.amount, self.due, self.status)
-
-
-class Message:
-    def __init__(self, message_str):
-        j = json.loads(message_str)
-        self.src = j['To']
-        self.body = j['Body']
-
-    def __repr__(self):
-        return "<Message(src='{}', body='{}')>"\
-                .format(self.src, self.body)
+        return "<Payment(id='{}', amount='{}', status='{}', due='{}', next_due='{}', notifications='{}')>"\
+                .format(self.id, self.amount, self.status, self.due, self.next_due, self.notifications)
 
 class TextMessage:
     def __init__(self, message_str):
@@ -108,40 +100,13 @@ class TextMessage:
                 .format(self.src, self.body)
 
 class EmailMessage:
-    def __init__(self, message_str):
-        j = json.loads(message_str)
-        self.src = j['To']
-        self.body = j['Body']
+    def __init__(self, message_obj):
+        self.src = message_obj['From']
+        self.subject = message_obj['Subject']
+        self.body = message_obj.get_payload()
 
     def __repr__(self):
-        return "<Message(src='{}', body='{}')>"\
-                .format(self.src, self.body)
+        return "<Message(src='{}', subject='{}', len(body)='{}')>"\
+                .format(self.src, self.subject, len(self.body))
 
-#class RecurringPayment(Base):
-#    __tablename__ = 'recurringpayments'
-#
-#    id = Column(Integer, primary_key=True)
-#    title = Column(String)
-#    amount = Column(Integer)
-#    occur = Column(String)
-#    start = Column(DateTime)
-#    end = Column(DateTime)
-#    user_id = Column(Integer, ForeignKey('users.id'))
-#
-#    def __repr__(self):
-#        return "<RecurringPayment(title='{}', amount='{}', occur='{}', start='{}', end='{}', user_id='{}')>"\
-#                .format(self.title, self.amount, self.occur, self.start, self.end, self.user_id)
-#
-#class Payment(Base):
-#    __tablename__ = 'payments'
-#
-#    id = Column(Integer, primary_key=True)
-#    title = Column(String)
-#    amount = Column(Integer)
-#    recurringpayment_id = Column(Integer, ForeignKey('recurringpayments.id'))
-#    user_id = Column(Integer, ForeignKey('users.id'))
-#    
-#    def __repr__(self):
-#        return "<Payment(title='{}', amount='{}', recurringpayment_id='{}', user_id='{}')>"\
-#                .format(self.title, self.amount, self.recurringpayment_id, self.user_id)
-#
+

@@ -8,7 +8,7 @@ import time
 import os
 
 from .devices import Mail
-from .models import Base
+from .models import *
 from .modules import *
 
 #python3 has yaml builtin?
@@ -65,28 +65,37 @@ class Jarvis:
                 self.threads.append(t)
             while True:
                 m = self.message_q.get()
-                src = m.src
+                if type(m) == TextMessage:
+                    src = m.src
+                    contact = self.session.query(Contact).filter(Contact.number == src).first()
+                    if contact:
+                        contact.increment_incoming()
+                elif type(m) == EmailMessage:
+                    pass
+
                 logger.info("Distributing message to consumers: {}".format(m))
-                contact = self.session.query(Contact).filter(Contact.number == src).first()
-                contact.increment_incoming()
                 for t in self.threads:
-                    if t.sms_consumer:
-                        t.process_message(m)
-                    elif t.email_consumer:
-                        t.process_message(m)
+                    if t.sms_consumer and type(m) == TextMessage:
+                        t._process_message(m)
+                    elif t.email_consumer and type(m) == EmailMessage:
+                        t._process_message(m)
                 self.message_q.task_done()
                     #logger.debug("Heartbeat for {} was {}s ago".format(t, (datetime.datetime.now()-t.heartbeat).seconds))
                 time.sleep(.5)
         except KeyboardInterrupt:
-            self.Session.remove()
             logger.info("Ctrl+C, RIP threads.")
+            self.Session.remove()
             for thread in self.threads:
                 thread.stop()
             for thread in self.threads:
                 thread.join()
         except Exception as e:
+            logger.exception("Core Exception: {}".format(e))
             self.Session.remove()
-            logger.exception("Unhandled exception: {}".format(e))
+            for thread in self.threads:
+                thread.stop()
+            for thread in self.threads:
+                thread.join()
 
 def main():
     parser = argparse.ArgumentParser()
