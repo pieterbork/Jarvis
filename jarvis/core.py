@@ -5,6 +5,7 @@ import datetime
 import argparse
 import logging
 import time
+import sys
 import os
 
 from .devices import Mail
@@ -45,12 +46,19 @@ class Jarvis:
         self.modules = self.config.modules
         self.message_q = Queue()
         self.threads = []
-        self.db_path = args.database
+        try:
+            self.db_path = self.config.db['path']
+        except:
+            self.db_path = args.database
         logger.info("Initiating db_connection with : {}".format(self.db_path))
-        self.engine = create_engine('sqlite:///{}?{}'.format(self.db_path,"check_same_thread=false"))
-        self.Session = scoped_session(sessionmaker(bind=self.engine))
-        self.session = self.Session()
-        Base.metadata.create_all(self.engine)
+        try:
+            self.engine = create_engine('sqlite:///{}?{}'.format(self.db_path,"check_same_thread=false"))
+            self.Session = scoped_session(sessionmaker(bind=self.engine))
+            self.session = self.Session()
+            Base.metadata.create_all(self.engine)
+        except Exception as e:
+            logger.exception("Error initiating database: {}".format(e))
+            sys.exit(1)
 
     def run_modules(self):
         try:
@@ -59,10 +67,13 @@ class Jarvis:
                 attrs['mailbox'] = self.mailbox
                 attrs['message_q'] = self.message_q
                 mod_func = globals()[module]
-                logger.info("Launching {}".format(module))
-                t = mod_func(attrs)
-                t.start()
-                self.threads.append(t)
+                try:
+                    logger.info("Launching {}".format(module))
+                    t = mod_func(attrs)
+                    t.start()
+                    self.threads.append(t)
+                except Exception as e:
+                    logger.exception("Error launching module {}: {}".format(module, e))
             while True:
                 m = self.message_q.get()
                 if type(m) == TextMessage:

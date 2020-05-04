@@ -22,6 +22,7 @@ class RedisModule(BaseModule):
         self.message_q = conf["message_q"]
         self.client = redis.Redis(host='redis', port=6379, db=0)
         self.pubsub = self.client.pubsub()
+        self.pubsub.subscribe('messages')
         self.process = True
 
     def parse_email_msgs(self, msgs):
@@ -41,18 +42,17 @@ class RedisModule(BaseModule):
         logger.info("Placing {} on message queue!".format(m))
         self.message_q.put(m)
 
-    def run(self):
-        self.pubsub.subscribe('messages')
-        while True and self.process:
-            msg = self.pubsub.get_message()
-            if msg and msg['type'] == 'message':
-                text_m = self.parse_text_message(msg)
-                self.q_message(text_m)
-            msgs = self.mailbox.get_unread_messages()
-            messages = self.parse_email_msgs(msgs)
-            for email_m in messages:
-                self.q_message(email_m)
-            time.sleep(0.1)
+    def run_loop_tasks(self):
+        msg = self.pubsub.get_message()
+        if msg and msg['type'] == 'message':
+            text_m = self.parse_text_message(msg)
+            self.q_message(text_m)
+
+    def run_scheduled_tasks(self):
+        msgs = self.mailbox.get_unread_messages()
+        messages = self.parse_email_msgs(msgs)
+        for email_m in messages:
+            self.q_message(email_m)
 
     def stop(self):
         logger.info('{} received stop request'.format(self.__name__))

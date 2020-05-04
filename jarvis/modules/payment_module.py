@@ -11,14 +11,15 @@ logger = logging.getLogger(__name__)
 
 #PaymentMessage used in this module only
 class PaymentMessage:
-    def __init__(self, name, amount, platform):
+    def __init__(self, name, amount, platform, direction=None):
         self.name = name
         self.amount = str(amount)
         self.platform = platform
+        self.direction = direction
 
     def __repr__(self):
-        return "<PaymentMessage(name='{}', amount='{}', platform='{}')>"\
-                .format(self.name, self.amount, self.platform)
+        return "<PaymentMessage(name='{}', amount='{}', platform='{}', direction='{}')>"\
+                .format(self.name, self.amount, self.platform, self.direction)
 
 class PaymentModule(BaseModule):
     def __init__(self, *args, **kwargs):
@@ -32,33 +33,50 @@ class PaymentModule(BaseModule):
 
     def parse_payment_msg_from_email(self, msg):
         sub = msg.subject
+        parts = sub.split()
 
         if 'paid you' in sub:
             platform = "venmo"
-            selector = 'paid you'
+            direction = 'incoming'
+            name = parts[:2]
         elif 'sent you' in sub:
             platform = "zelle"
-            selector = 'sent you'
+            direction = 'incoming'
+            name = parts[:2]
+        elif 'You paid' in sub:
+            platform = 'venmo'
+            direction = 'outgoing'
+            name = parts[-3:-1]
         else:
             logger.info("Idk what this is: {}".format(sub))
             raise Exception("parse_payment_msg_from_email, new kind of message?")
-        parts = sub.split(selector)
-        name = parts[0].strip()
-        amount = Decimal(parts[1].replace('$',''))
-        m = PaymentMessage(name, amount, platform)
+        name = ' '.join(name)
+        amount = Decimal(parts[-1].replace('$',''))
+        m = PaymentMessage(name, amount, platform, direction)
         return m
 
     def parse_payment_msg_from_text(self, msg):
         pass
 
+    def get_user(self, name):
+        user = self.session.query(User).filter(name == User.name).all()
+        return user
+
     def get_user_from_name(self, name):
-        user = self.session.query(User).filter(name.title() == User.name).all()
+        user = self.get_user(name.title())
         if len(user) > 1:
             logger.info("Found more than one user for query {}: {}".format(name, user))
+            for u in user:
+                print(u)
         elif user:
             user = user[0]
         else:
-            print("Couldn't find a user...")
+            parts = name.split()
+            first_name = parts[0]
+            logger.info("Couldn't find a user with name: {}, searching for {}".format(name, first_name))
+            user = self.get_user(first_name.title())
+            if user:
+                user = user[0]
         return user
 
     def get_contact_from_number(self, number):
@@ -117,6 +135,20 @@ class PaymentModule(BaseModule):
         self.session.delete(payment)
         self.session.commit()
         logger.info("Deleted payment: {}".format(payment))
+
+    def save(self, obj):
+        self.session.add(obj)
+        self.session.commit()
+        logger.info("Committed {} to db".format(obj))
+
+    def complete_payment(self, user, payment):
+        logger.info("Marking {} as complete...".format(payment))
+        payment.complete()
+        self.save(payment)
+        if payment.next_due:
+            due = payment.next_due
+            next_payment = Payment(amount=payment.amount, due=due, next_due=self.get_first_day_next_month(due))
+            self.schedule_payment(user, next_payment)
         
     def process_message(self, msg):
         if type(msg) == TextMessage:
@@ -128,7 +160,7 @@ class PaymentModule(BaseModule):
                     dollar_amount = [s for s in parts if "$" in s][0]
                 except Exception as e:
                     raise e
-                amount = Decimal(dollar_amount.strip("$"))
+                amount = Decimal('{:0.2f}'.format(float(dollar_amount.strip("$"))))
                 i = parts.index(dollar_amount)
                 name = ' '.join(parts[1:i]).replace(' for', '')
                 date_expr_parts = parts[i+1:]
@@ -155,8 +187,27 @@ class PaymentModule(BaseModule):
                 contact.send_sms(resp)
                 
         elif type(msg) == EmailMessage:
-            if any(["venmo", "zelle"]) in msg.subject:
-                pm = parse_payment_message_from_email(msg)
+            if any(s in msg.src for s in ["venmo", "chase"]):
+                pm = self.parse_payment_msg_from_email(msg)
+                if pm:
+                    if pm.direction == 'incoming':
+                        logger.info("Incoming Payment: {}".format(pm))
+                        user = self.get_user_from_name(pm.name)
+                        if user:
+                            logger.info("Found user for payment: {}".format(user.name))
+                            for p in user.payments:
+                                if p.amount == pm.amount:
+                                    logger.info("Found matching payment {}".format(p))
+                                    if int(p.status) == 0:
+                                        logger.info("{} just paid their bill of {}".format(user.name, p.amount))
+                                        c = user.contacts[0]
+                                        c.send_sms("Hi {}, thanks for paying your bill of ${}.".format(user.name, p.amount))
+                                        #user.send_sms("Hi {}, thanks for paying your bill of ${}.".format(user.name, p.amount))
+                                        self.complete_payment(user, p)
+                                    else:
+                                        logger.info("Did {} already pay the bill for {}".format(user.name, p))
+                    else:
+                        print('outgoing payment: {}'.format(pm))
 
     def run_scheduled_tasks(self):
         payments = self.get_overdue_unnotified_payments()
@@ -168,7 +219,7 @@ class PaymentModule(BaseModule):
             #c = user.contacts[0]
             c = self.session.query(Contact).get(1)
             logger.info("Sending notification for {}".format(p))
-            c.send_sms("{} owes Pieter {} - best pay up...".format(user, p.amount))
+            c.send_sms("Hi {}! You owe Pieter ${} - your due date was {}".format(user.name, p.amount, p.due))
             p.notifications += 1
             self.session.add(p)
             self.session.commit()

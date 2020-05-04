@@ -4,6 +4,7 @@ import logging
 import base64
 import time
 import json
+import re
 
 from . import *
 from .base_module import BaseModule
@@ -56,6 +57,28 @@ class CommandModule(BaseModule):
             alias = parts[2].title()
             self.set_alias(contact.user, alias)
             resp = 'Your alias has been updated to {}.'.format(alias)
+        elif parts_len > 2 and parts[1] == 'user':
+            for idx, part in enumerate(parts):
+                name = None
+                number = None
+                if re.match(PHONE_REGEX, part):
+                    name = ' '.join(parts[2:idx]).title()
+                    number = part
+            if not name or not number:
+                logger.info("Could not parse name and number from {}".format(parts))
+                contact.send_sms("There was an error parsing that data.")
+            else:
+                logger.info("Parsed name as {} and number as {}".format(name, number))
+                c = self.session.query(Contact).filter(Contact.number == number).first()
+                u = self.session.query(User).filter(User.name == name).first()
+                if not u:
+                    u = User(name)
+                if not c:
+                    c = Contact(number)
+                u.contacts.append(c)
+                self.session.add(u)
+                self.session.commit()
+                contact.send_sms("Creating user: {} with contact: {}".format(u, c))
         return resp
 
     def get_list_response(self, contact, parts):
@@ -191,3 +214,5 @@ class CommandModule(BaseModule):
             contact.send_sms(resp)
         else:
             logger.info("Couldn't figure out a response...")
+
+

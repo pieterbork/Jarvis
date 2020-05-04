@@ -62,16 +62,24 @@ class BaseModule(Thread):
             logger.exception(e)
 
     def process_message(self, msg):
+        #How this module handles messages
         #Overwrite me!
         pass
 
     def run_scheduled_tasks(self):
+        #Tasks to run every self.schedule seconds
+        #Overwrite me!
+        pass
+
+    def run_loop_tasks(self):
+        #Tasks to run every second
         #Overwrite me!
         pass
 
     def run(self):
         while True and self.process:
             now = datetime.datetime.now()
+            self.run_loop_tasks()
             if now.second == 0 and now.minute % int(self.schedule) == 0:
                 logger.debug("{}: running scheduled tasks".format(self.__class__.__name__))
                 self.run_scheduled_tasks()

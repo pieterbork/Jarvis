@@ -3,12 +3,12 @@ FROM golang:alpine as builder
 RUN apk --no-cache add git mercurial
 
 RUN go get github.com/sirupsen/logrus \
-    && go get github.com/pieterbork/textsecure/ \
+    && go get github.com/signal-golang/textsecure \
     && go get github.com/go-redis/redis \
-    && cd src/github.com/pieterbork/textsecure/cmd/textsecure \
+    && cd /go/src/github.com/signal-golang/textsecure/cmd/textsecure \
     && go build \
-    && mv /go/src/github.com/pieterbork/textsecure/cmd/textsecure /output \
-    && rm -f /output/main.go
+    && mkdir /output \
+    && mv /go/src/github.com/signal-golang/textsecure/cmd/textsecure/textsecure /output
 
 FROM alpine:latest
 

@@ -3,9 +3,12 @@ from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from decimal import Decimal
 import requests
+import logging
 import json
 
 Base = declarative_base()
+
+logger = logging.getLogger(__name__)
 
 class User(Base):
     __tablename__ = 'users'
@@ -22,6 +25,10 @@ class User(Base):
         self.name = name
         self.auth = 0
         self.alias = None
+
+    def send_sms(self, msg):
+        logger.info("Sending {} to {}".format(msg, self.contacts[0]))
+        self.contacts[0].send_sms(msg)
 
     def set_trusted(self):
         self.auth = 1
@@ -83,7 +90,7 @@ class Payment(Base):
         self.next_due = next_due
 
     def complete(self):
-        self.status = 0
+        self.status = 1
 
     def __repr__(self):
         return "<Payment(id='{}', amount='{}', status='{}', due='{}', next_due='{}', notifications='{}')>"\
@@ -96,7 +103,7 @@ class TextMessage:
         self.body = j['Body']
 
     def __repr__(self):
-        return "<Message(src='{}', body='{}')>"\
+        return "<TextMessage(src='{}', body='{}')>"\
                 .format(self.src, self.body)
 
 class EmailMessage:
@@ -106,7 +113,7 @@ class EmailMessage:
         self.body = message_obj.get_payload()
 
     def __repr__(self):
-        return "<Message(src='{}', subject='{}', len(body)='{}')>"\
+        return "<EmailMessage(src='{}', subject='{}', len(body)='{}')>"\
                 .format(self.src, self.subject, len(self.body))
 
 

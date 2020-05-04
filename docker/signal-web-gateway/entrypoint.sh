@@ -1,7 +1,7 @@
 #!/bin/bash
 
 start() {
-  ./textsecure -gateway -bind 0.0.0.0:5000
+  ./textsecure -gateway -bind 0.0.0.0:5000 -redismode -redisbind redis:6379
 }
 
 stop() {

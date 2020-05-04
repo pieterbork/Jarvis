@@ -5,16 +5,18 @@ services:
     container_name: jarvis
     image: jarvis
     build: .
+    restart: always
     links:
       - "signal-gateway:signal"
       - "redis:redis"
     volumes:
         - /data/jarvis/jarvis.cfg:/etc/jarvis/jarvis.cfg
-        - /data/jarvis/jarvis.db:/etc/jarvis/jarvis.db 
+        - /data/jarvis/jarvis.db:/etc/jarvis/jarvis.db
   signal-gateway:
     container_name: signal-web-gateway
     image: signal-web-gateway
-    build: ./signal-web-gateway
+    build: ./docker/signal-web-gateway
+    restart: always
     ports:
       - 127.0.0.1:5000:5000
     volumes:
