@@ -2,6 +2,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from decimal import Decimal
+from datetime import datetime
 import requests
 import logging
 import json
@@ -20,6 +21,7 @@ class User(Base):
     auth = Column(Integer)
     contacts = relationship('Contact', backref="user")
     payments = relationship('Payment', backref="user")
+    schedules = relationship('Schedule', backref="user")
 
     def __init__(self, name):
         self.name = name
@@ -56,6 +58,7 @@ class Contact(Base):
         self.outgoing = 0
 
     def send_sms(self, msg):
+        logger.info("Sending {} to {}".format(msg, self.number))
         requests.post('http://signal:5000', data={'to': self.number, 'message': msg})
         self.increment_outgoing()
 
@@ -69,6 +72,72 @@ class Contact(Base):
         return "<Contact(number='{}', incoming='{}', outgoing='{}')>"\
                 .format(self.number, self.incoming, self.outgoing)
 
+class Schedule(Base):
+    __tablename__ = 'schedules'
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+    schedule_type = Column(String)
+    interval = Column(String)
+    arguments = Column(String)
+    data = Column(String)
+    next_run = Column(DateTime)
+    user_id = Column(Integer, ForeignKey('users.id'))
+    actions = relationship('Action', backref="schedule")
+
+    def __init__(self, name, schedule_type, interval, arguments=None, data=None):
+        self.name = name
+        self.set_schedule_type(schedule_type)
+        self.set_interval(interval)
+        if self.schedule_type == 'script' and not self.arguments:
+            raise TypeError('A script action cannot have arguments=None')
+        elif self.schedule_type == 'payment' and not self.data:
+            raise TypeError('A payment action must have data=$value')
+        self.arguments = arguments
+        self.data = data
+
+    def set_schedule_type(self, schedule_type):
+        schedule_types = ['payment', 'script']
+        if schedule_type schedule_types:
+            self.schedule_type = schedule_type
+        else:
+            raise ValueError('schedule_type: {} is not a valid schedule_type...'.format(schedule_type))
+
+    def set_interval(self, interval):
+        intervals = ['daily', 'weekly', 'monthly']
+        if interval intervals:
+            self.interval = interval
+        else:
+            raise ValueError('interval: {} is not a valid interval...'.format(interval))
+
+    def __repr__(self):
+        return "<Schedule(id='{}', name='{}', schedule_type='{}', interval='{}', arguments='{}', data='{}', next_run='{}')>"\
+                .format(self.id, self.name, self.schedule_type, self.interval, self.arguments, self.data, self.next_run)
+
+class Action(Base):
+    __tablename__ = 'actions'
+
+    id = Column(Integer, primary_key=True)
+    action_type = Column(String)
+    description = Column(String)
+    creation_time = Column(DateTime)
+    schedule_id = Column(Integer, ForeignKey('schedules.id'))
+
+    def __init__(self, action_type, description):
+        self.set_action_type(action_type)
+        self.description = description
+        self.creation_time = datetime.now()
+
+    def set_action_type(self, action_type):
+        action_types = ['notification', 'completed']
+        if action_type in action_types:
+            self.action_type = action_type
+        else:
+            raise ValueError('{} is not a valid action_type.'.format(action_type))
+
+    def __repr__(self):
+        return "<Action(id='{}', action_type='{}', description='{}', creation_time='{}')>"\
+                .format(self.id, self.action_type, self.description, self.creation_time)
 
 class Payment(Base):
     __tablename__ = 'payments'

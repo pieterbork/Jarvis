@@ -63,7 +63,7 @@ class CommandModule(BaseModule):
                 number = None
                 if re.match(PHONE_REGEX, part):
                     name = ' '.join(parts[2:idx]).title()
-                    number = part
+                    number = part.replace('-','')
             if not name or not number:
                 logger.info("Could not parse name and number from {}".format(parts))
                 contact.send_sms("There was an error parsing that data.")
@@ -80,6 +80,22 @@ class CommandModule(BaseModule):
                 self.session.commit()
                 contact.send_sms("Creating user: {} with contact: {}".format(u, c))
         return resp
+
+    def get_delete_response(self, contact, parts):
+        logger.info("get_delete_resp: {}".format(parts))
+        resp = None
+        parts_len = len(parts)
+        if parts_len > 2 and parts[1] == 'user':
+            logger.info("Passed if")
+            try:
+                user_id = int(parts[2])
+                logger.info("uid: {}".format(user_id))
+                user = self.session.query(User).get(user_id)
+                self.session.delete(user)
+                self.session.commit()
+                resp = "Deleted user {}".format(user_id)
+            except:
+                resp = "Error deleting user."
 
     def get_list_response(self, contact, parts):
         resp = None
@@ -113,6 +129,8 @@ class CommandModule(BaseModule):
                     resp = self.get_get_response(contact, parts)
                 elif parts[0] == 'list':
                     resp = self.get_list_response(contact, parts)
+                elif parts[0] == 'delete':
+                    resp = self.get_delete_response(contact, parts)
                 elif parts[0] == 'whoami':
                     resp = str(contact.user)
             else:

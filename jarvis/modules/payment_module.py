@@ -60,6 +60,9 @@ class PaymentModule(BaseModule):
 
     def get_user(self, name):
         user = self.session.query(User).filter(name == User.name).all()
+        if not user:
+            logger.info("Using startswith to find user...")
+            user = self.session.query(User).filter(User.name.startswith(name)).all()
         return user
 
     def get_user_from_name(self, name):
@@ -77,6 +80,7 @@ class PaymentModule(BaseModule):
             user = self.get_user(first_name.title())
             if user:
                 user = user[0]
+
         return user
 
     def get_contact_from_number(self, number):
@@ -200,9 +204,9 @@ class PaymentModule(BaseModule):
                                     logger.info("Found matching payment {}".format(p))
                                     if int(p.status) == 0:
                                         logger.info("{} just paid their bill of {}".format(user.name, p.amount))
-                                        c = user.contacts[0]
-                                        c.send_sms("Hi {}, thanks for paying your bill of ${}.".format(user.name, p.amount))
-                                        #user.send_sms("Hi {}, thanks for paying your bill of ${}.".format(user.name, p.amount))
+                                        #c = user.contacts[0]
+                                        #c.send_sms("Hi {}, thanks for paying your bill of ${}.".format(user.name, p.amount))
+                                        user.send_sms("Hi {}, thanks for paying your bill of ${}.".format(user.name, p.amount))
                                         self.complete_payment(user, p)
                                     else:
                                         logger.info("Did {} already pay the bill for {}".format(user.name, p))
@@ -216,10 +220,13 @@ class PaymentModule(BaseModule):
         for p in payments:
             user = p.user
             # needs to be enabled to send to actual contact
-            #c = user.contacts[0]
-            c = self.session.query(Contact).get(1)
-            logger.info("Sending notification for {}".format(p))
-            c.send_sms("Hi {}! You owe Pieter ${} - your due date was {}".format(user.name, p.amount, p.due))
+            c = user.contacts[0]
+            logger.info("Sending notification for {} to {}".format(p, c))
+            name = user.name.split()[0].title()
+            if name == 'Jacob':
+                name = 'J-cooooohhhp'
+            result = c.send_sms("Hi {}! You owe Pieter ${} - your due date is today!".format(name, p.amount))
+            logger.info("Notification status: {}".format(result))
             p.notifications += 1
             self.session.add(p)
             self.session.commit()
