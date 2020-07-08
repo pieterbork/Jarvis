@@ -34,8 +34,8 @@ class BaseModule(Thread):
         else:
             logger.info("User already exists...")
 
-    def create_contact(self, data):
-        contact = Contact(data=data)
+    def create_contact(self, number):
+        contact = Contact(number=number)
         self.session.add(contact)
         self.session.commit()
 
@@ -47,21 +47,13 @@ class BaseModule(Thread):
         user.alias = alias
         self.session.commit()
 
-    def has_permissions(self, contact, command):
-        logger.info("has_permissions, user: {}, command: {}".format(contact.user, command))
-        if command in ADMIN_CMDS and contact.user.auth == 2:
-            return True
-        elif command not in ADMIN_CMDS:
-            return True
-        return False
-
-    def _process_message(self, msg):
+    def _process_message(self, contact, msg):
         try:
-            self.process_message(msg)
+            self.process_message(contact, msg)
         except Exception as e:
             logger.exception(e)
 
-    def process_message(self, msg):
+    def process_message(self, contact, msg):
         #How this module handles messages
         #Overwrite me!
         pass

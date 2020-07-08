@@ -7,6 +7,8 @@ import requests
 import logging
 import json
 
+from .settings import MODULE_COMMANDS
+
 Base = declarative_base()
 
 logger = logging.getLogger(__name__)
@@ -31,6 +33,20 @@ class User(Base):
     def send_sms(self, msg):
         logger.info("Sending {} to {}".format(msg, self.contacts[0]))
         self.contacts[0].send_sms(msg)
+
+    def has_permissions(self, msg):
+        logger.info("Checking perms for user {}, command: {}".format(self.name, msg))
+        parts = msg.lower().split()
+        if len(parts) > 0 and parts[0]:
+            cmd = parts[0]
+            if cmd in MODULE_COMMANDS:
+                auth_required = MODULE_COMMANDS[cmd]
+                logger.info("cmd: {}, auth_required: {}".format(cmd, auth_required))
+                if cmd in MODULE_COMMANDS and self.auth >= auth_required:
+                    return True
+            else:
+                logger.info("Command not in settings.MODULE_COMMANDS list: {}".format(cmd))
+        return False
 
     def set_trusted(self):
         self.auth = 1
@@ -82,6 +98,7 @@ class Schedule(Base):
     arguments = Column(String)
     data = Column(String)
     next_run = Column(DateTime)
+    last_action = Column(DateTime)
     user_id = Column(Integer, ForeignKey('users.id'))
     actions = relationship('Action', backref="schedule")
 
@@ -98,17 +115,21 @@ class Schedule(Base):
 
     def set_schedule_type(self, schedule_type):
         schedule_types = ['payment', 'script']
-        if schedule_type schedule_types:
+        if schedule_type in schedule_types:
             self.schedule_type = schedule_type
         else:
             raise ValueError('schedule_type: {} is not a valid schedule_type...'.format(schedule_type))
 
     def set_interval(self, interval):
         intervals = ['daily', 'weekly', 'monthly']
-        if interval intervals:
+        if interval in intervals:
             self.interval = interval
         else:
             raise ValueError('interval: {} is not a valid interval...'.format(interval))
+
+    def add_action(self, action):
+        self.actions.append(action)
+        self.last_action = datetime.now()
 
     def __repr__(self):
         return "<Schedule(id='{}', name='{}', schedule_type='{}', interval='{}', arguments='{}', data='{}', next_run='{}')>"\
@@ -129,7 +150,7 @@ class Action(Base):
         self.creation_time = datetime.now()
 
     def set_action_type(self, action_type):
-        action_types = ['notification', 'completed']
+        action_types = ['notification', 'completed', 'created']
         if action_type in action_types:
             self.action_type = action_type
         else:
@@ -170,10 +191,11 @@ class TextMessage:
         j = json.loads(message_str)
         self.src = j['To']
         self.body = j['Body']
+        self.group_id = j['GroupId']
 
     def __repr__(self):
-        return "<TextMessage(src='{}', body='{}')>"\
-                .format(self.src, self.body)
+        return "<TextMessage(src='{}', body='{}', group_id='{}')>"\
+                .format(self.src, self.body, self.group_id)
 
 class EmailMessage:
     def __init__(self, message_obj):

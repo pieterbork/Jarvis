@@ -11,6 +11,7 @@ import os
 from .devices import Mail
 from .models import *
 from .modules import *
+from . import utils
 
 #python3 has yaml builtin?
 try:
@@ -60,6 +61,12 @@ class Jarvis:
             logger.exception("Error initiating database: {}".format(e))
             sys.exit(1)
 
+    def cull_threads(self):
+        for thread in self.threads:
+            thread.stop()
+        for thread in self.threads:
+            thread.join()
+
     def run_modules(self):
         try:
             for module, attrs in self.modules.items():
@@ -78,8 +85,25 @@ class Jarvis:
                 m = self.message_q.get()
                 if type(m) == TextMessage:
                     src = m.src
-                    contact = self.session.query(Contact).filter(Contact.number == src).first()
-                    if contact:
+                    logger.info("Getting contact for {}".format(src))
+                    contact = self.session.query(Contact).filter(Contact.number == m.src).first()
+                    if not contact:
+                        logger.info("No contact for {}, not sending to modules".format(m))
+                        continue
+                    else:
+                        contact.increment_incoming()
+                    user = self.session.query(User).get(contact.user_id)
+                    if not user:
+                        logger.info("Pass to introduction module?")
+                        continue
+                    if user.has_permissions(m.body):
+                        logger.info("Contact {} has permissions to run {}".format(contact, m.body))
+                    else:
+                        logger.info("Contact {} does not have permissions to run {}".format(contact, m.body))
+                        continue
+                    #If this user messaged through a group, be sure to respond to the group - not individual.
+                    if m.group_id:
+                        contact = utils.get_or_create_contact(self.session, user, m.group_id)
                         contact.increment_incoming()
                 elif type(m) == EmailMessage:
                     pass
@@ -87,7 +111,7 @@ class Jarvis:
                 logger.info("Distributing message to consumers: {}".format(m))
                 for t in self.threads:
                     if t.sms_consumer and type(m) == TextMessage:
-                        t._process_message(m)
+                        t._process_message(contact, m)
                     elif t.email_consumer and type(m) == EmailMessage:
                         t._process_message(m)
                 self.message_q.task_done()
@@ -96,17 +120,11 @@ class Jarvis:
         except KeyboardInterrupt:
             logger.info("Ctrl+C, RIP threads.")
             self.Session.remove()
-            for thread in self.threads:
-                thread.stop()
-            for thread in self.threads:
-                thread.join()
+            self.cull_threads()
         except Exception as e:
             logger.exception("Core Exception: {}".format(e))
             self.Session.remove()
-            for thread in self.threads:
-                thread.stop()
-            for thread in self.threads:
-                thread.join()
+            self.cull_threads()
 
 def main():
     parser = argparse.ArgumentParser()

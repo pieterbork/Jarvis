@@ -29,5 +29,5 @@ storagePassword: password
 #userAgent: "TextSecure Go command line client 0.1"
 
 #Logging verbosity; valid values are error,warn,info and debug, case insensitive
-#loglevel: debug
+loglevel: debug
 

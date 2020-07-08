@@ -6,6 +6,7 @@ import time
 import json
 import re
 
+from .. import utils
 from . import *
 from .base_module import BaseModule
 
@@ -106,10 +107,40 @@ class CommandModule(BaseModule):
             elif parts[1] == 'users':
                 objects = self.session.query(User).all()
             elif parts[1] == 'payments':
-                objects = self.session.query(Payment).all()
+                if parts_len > 2:
+                    if parts[2] == 'for' and parts_len > 3:
+                        name = ' '.join(parts[3:])
+                        user = utils.get_user_from_name(self.session, name)
+                        objects = user.payments
+                else:
+                    objects = self.session.query(Payment).all()
+            elif parts[1] == 'overdue' and parts[2] == 'payments':
+                overdue_payments = self.session.query(Payment)\
+                        .filter(Payment.status == 0)\
+                        .filter(Payment.due < datetime.now()).all()
+                objects = "There are {} overdue payments:".format(len(overdue_payments))
+                for p in overdue_payments:
+                    u = self.session.query(User).get(p.user_id)
+                    days_overdue = (datetime.now() - utils.get_datetime(p.due)).days
+                    objects += "\n(id: {}) {}: {} - {} days late".format(p.id, u.name, p.amount, days_overdue)
             else:
                 objects = []
             resp = str(objects)
+        return resp
+    
+    def get_run_response(self, contact, parts):
+        resp = None
+        if parts[0] == 'run':
+            logger.info("run...")
+            if len(parts) > 1 and parts[1] == 'script':
+                logger.info("run script...")
+                if len(parts) > 2:
+                    for KEY,VALS in SCRIPTS.items():
+                        logger.info("{}:{}".format(KEY, VALS))
+                        if parts[2] == KEY or parts[2] in VALS['aliases']:
+                            script = KEY
+                            args = VALS['args']
+                            resp = utils.run_script(script, args)
         return resp
 
     def get_command_response(self, contact, msg):
@@ -122,19 +153,20 @@ class CommandModule(BaseModule):
             resp = 'pong'
         else:
             parts = msg.split()
-            if self.has_permissions(contact, parts[0]):
-                if parts[0] == 'set':
-                    resp = self.get_set_response(contact, parts)
-                elif parts[0] == 'get':
-                    resp = self.get_get_response(contact, parts)
-                elif parts[0] == 'list':
-                    resp = self.get_list_response(contact, parts)
-                elif parts[0] == 'delete':
-                    resp = self.get_delete_response(contact, parts)
-                elif parts[0] == 'whoami':
-                    resp = str(contact.user)
+            if parts[0] == 'set':
+                resp = self.get_set_response(contact, parts)
+            elif parts[0] == 'get':
+                resp = self.get_get_response(contact, parts)
+            elif parts[0] == 'list':
+                resp = self.get_list_response(contact, parts)
+            elif parts[0] == 'delete':
+                resp = self.get_delete_response(contact, parts)
+            elif parts[0] == 'whoami':
+                resp = str(contact.user)
+            elif parts[0] == 'run':
+                resp = self.get_run_response(contact, parts)
             else:
-                resp = "You don't have permission to use this command."
+                logger.error("Unsupported command: {}".format(msg))
         return resp
 
     def get_greeting_response(self, contact, msg):
@@ -216,19 +248,16 @@ class CommandModule(BaseModule):
 
         return resp
 
-    def process_message(self, m):
-        src = m.src
+    def process_message(self, contact, m):
         body = m.body
         logger.info("Command is {}".format(body))
-        contact = self.session.query(Contact).filter(Contact.number == src).first()
-        if not contact:
-            contact = Contact(src)
-            self.session.add(contact)
-            self.session.commit()
         
-        resp = self.get_message_response(contact, body.lower())
+        try:
+            resp = self.get_message_response(contact, body.lower())
+        except Exception as e:
+            logger.exception("Exception in CommandModule... {}".format(e))
+            resp = "There was an exception processing your command, sorry bb."
         if resp:
-            logger.info("Sending {} to {}".format(resp, src))
             contact.send_sms(resp)
         else:
             logger.info("Couldn't figure out a response...")

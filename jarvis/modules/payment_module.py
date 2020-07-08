@@ -4,6 +4,7 @@ import calendar
 import logging
 import time
 
+from .. import utils
 from . import User, Contact, Payment, TextMessage, EmailMessage
 from .base_module import BaseModule
 
@@ -28,7 +29,7 @@ class PaymentModule(BaseModule):
         self.sms_consumer = True
     
     def get_overdue_unnotified_payments(self):
-        overdue_payments = self.session.query(Payment).filter(Payment.due < datetime.now()).filter(Payment.notifications == 0).all()
+        overdue_payments = self.session.query(Payment).filter(Payment.status == 0).filter(Payment.due < datetime.now()).filter(Payment.notifications == 0).all()
         return overdue_payments
 
     def parse_payment_msg_from_email(self, msg):
@@ -58,30 +59,7 @@ class PaymentModule(BaseModule):
     def parse_payment_msg_from_text(self, msg):
         pass
 
-    def get_user(self, name):
-        user = self.session.query(User).filter(name == User.name).all()
-        if not user:
-            logger.info("Using startswith to find user...")
-            user = self.session.query(User).filter(User.name.startswith(name)).all()
-        return user
 
-    def get_user_from_name(self, name):
-        user = self.get_user(name.title())
-        if len(user) > 1:
-            logger.info("Found more than one user for query {}: {}".format(name, user))
-            for u in user:
-                print(u)
-        elif user:
-            user = user[0]
-        else:
-            parts = name.split()
-            first_name = parts[0]
-            logger.info("Couldn't find a user with name: {}, searching for {}".format(name, first_name))
-            user = self.get_user(first_name.title())
-            if user:
-                user = user[0]
-
-        return user
 
     def get_contact_from_number(self, number):
         contact = self.session.query(Contact).filter(Contact.number == number).first()
@@ -154,10 +132,9 @@ class PaymentModule(BaseModule):
             next_payment = Payment(amount=payment.amount, due=due, next_due=self.get_first_day_next_month(due))
             self.schedule_payment(user, next_payment)
         
-    def process_message(self, msg):
+    def process_message(self, contact, msg):
         if type(msg) == TextMessage:
             resp = None
-            contact = self.get_contact_from_number(msg.src)
             parts = msg.body.lower().split(' ')
             if parts[0] in ['bill', 'charge']:
                 try:
@@ -169,7 +146,7 @@ class PaymentModule(BaseModule):
                 name = ' '.join(parts[1:i]).replace(' for', '')
                 date_expr_parts = parts[i+1:]
                 payment = self.get_payment(amount, date_expr_parts)
-                user = self.get_user_from_name(name) 
+                user = utils.get_user_from_name(self.session, name) 
                 if user:
                     self.schedule_payment(user, payment)
                     resp = "Scheduled payment_id: {} for user: {}".format(payment.id, user.name)
@@ -196,7 +173,7 @@ class PaymentModule(BaseModule):
                 if pm:
                     if pm.direction == 'incoming':
                         logger.info("Incoming Payment: {}".format(pm))
-                        user = self.get_user_from_name(pm.name)
+                        user = utils.get_user_from_name(self.session, pm.name)
                         if user:
                             logger.info("Found user for payment: {}".format(user.name))
                             for p in user.payments:
