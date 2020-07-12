@@ -27,12 +27,40 @@ def add_to_db(session, obj):
     session.add(obj)
     session.commit()
 
+def get_user_from_contact(session, contact):
+    user = session.query(User).filter(User.id == contact.user_id).first()
+    return user
+
+def get_user_contact(session, user_id):
+    contact = session.query(Contact).filter(Contact.user_id == user_id).first()
+    return contact
+
 def get_or_create_contact(session, user, number):
     contact = session.query(Contact).filter(Contact.user_id == user.id).filter(Contact.number == number).first()
     if not contact:
         contact = Contact(number=number)
         user.contacts.append(contact)
         add_to_db(session, user)
+
+def create_user(session, name, contact):
+    if not contact.user:
+        user = User(name=name)
+        user.contacts.append(contact)
+        session.add(user)
+        session.commit()
+        if user.id == 1:
+            user.set_admin()
+            session.add(user)
+            session.commit()
+        logger.info("Created user: {}".format(user))
+        return user
+    else:
+        logger.info("User already exists...")
+
+def create_contact(session, number):
+    contact = Contact(number=number)
+    session.add(contact)
+    session.commit()
     return contact
 
 def run_script(name, args={}):

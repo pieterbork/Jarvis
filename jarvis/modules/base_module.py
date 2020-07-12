@@ -6,11 +6,11 @@ import time
 from ..settings import *
 from . import User, Contact
 
-logger = logging.getLogger(__name__)
-
 class BaseModule(Thread):
     def __init__(self, conf):
         Thread.__init__(self)
+        logging.basicConfig(format=conf['logging']['format'], level=conf['logging']['level'])
+        self.logger = logging.getLogger('jarvis')
         self.schedule = conf['schedule']
         self.Session = conf['session']
         self.mailbox = conf['mailbox']
@@ -30,9 +30,9 @@ class BaseModule(Thread):
             self.session.commit()
             if user.id == 1:
                 user.set_admin()
-            logger.info("Created user: {}".format(user))
+            self.logger.info("Created user: {}".format(user))
         else:
-            logger.info("User already exists...")
+            self.logger.info("User already exists...")
 
     def create_contact(self, number):
         contact = Contact(number=number)
@@ -51,7 +51,7 @@ class BaseModule(Thread):
         try:
             self.process_message(contact, msg)
         except Exception as e:
-            logger.exception(e)
+            self.logger.exception(e)
 
     def process_message(self, contact, msg):
         #How this module handles messages
@@ -73,10 +73,10 @@ class BaseModule(Thread):
             now = datetime.datetime.now()
             self.run_loop_tasks()
             if now.second == 0 and now.minute % int(self.schedule) == 0:
-                logger.debug("{}: running scheduled tasks".format(self.__class__.__name__))
+                self.logger.debug("{}: running scheduled tasks".format(self.__class__.__name__))
                 self.run_scheduled_tasks()
             time.sleep(1)
 
     def stop(self):
-        logger.info('{}: received stop request'.format(self.__class__.__name__))
+        self.logger.info('{}: received stop request'.format(self.__class__.__name__))
         self.process = False

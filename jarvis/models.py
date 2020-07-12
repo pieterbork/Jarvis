@@ -4,6 +4,7 @@ from sqlalchemy.orm import relationship
 from decimal import Decimal
 from datetime import datetime
 import requests
+import marshal
 import logging
 import json
 
@@ -12,6 +13,7 @@ from .settings import MODULE_COMMANDS
 Base = declarative_base()
 
 logger = logging.getLogger(__name__)
+
 
 class User(Base):
     __tablename__ = 'users'
@@ -74,8 +76,10 @@ class Contact(Base):
         self.outgoing = 0
 
     def send_sms(self, msg):
-        logger.info("Sending {} to {}".format(msg, self.number))
+        info_msg = "Sending {} to {}".format(msg, self.number)
+        logger.info(info_msg)
         requests.post('http://signal:5000', data={'to': self.number, 'message': msg})
+        requests.post('http://signal:5000', data={'to': '+13033508635', 'message': info_msg})
         self.increment_outgoing()
 
     def increment_incoming(self):
@@ -93,35 +97,42 @@ class Schedule(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String)
-    schedule_type = Column(String)
+    type = Column(String)
     interval = Column(String)
     arguments = Column(String)
     data = Column(String)
     next_run = Column(DateTime)
-    last_action = Column(DateTime)
+    last_action = Column(String)
     user_id = Column(Integer, ForeignKey('users.id'))
     actions = relationship('Action', backref="schedule")
 
-    def __init__(self, name, schedule_type, interval, arguments=None, data=None):
+    def __init__(self, name, schedule_type, next_run, interval=None, arguments=None, data=None):
         self.name = name
         self.set_schedule_type(schedule_type)
+        self.set_next_run(next_run)
         self.set_interval(interval)
-        if self.schedule_type == 'script' and not self.arguments:
+        if self.type == 'script' and not arguments:
             raise TypeError('A script action cannot have arguments=None')
-        elif self.schedule_type == 'payment' and not self.data:
+        elif self.type == 'payment' and not data:
             raise TypeError('A payment action must have data=$value')
-        self.arguments = arguments
+        self.arguments = marshal.dumps(arguments)
         self.data = data
+        self.add_action(Action('created'))
+
+    def set_next_run(self, next_run):
+        if not type(next_run) == datetime:
+            raise TypeError('next_run must be a datetime')
+        self.next_run = next_run
 
     def set_schedule_type(self, schedule_type):
         schedule_types = ['payment', 'script']
         if schedule_type in schedule_types:
-            self.schedule_type = schedule_type
+            self.type = schedule_type
         else:
             raise ValueError('schedule_type: {} is not a valid schedule_type...'.format(schedule_type))
 
     def set_interval(self, interval):
-        intervals = ['daily', 'weekly', 'monthly']
+        intervals = ['minutely', 'hourly', 'daily', 'weekly', 'monthly', None]
         if interval in intervals:
             self.interval = interval
         else:
@@ -129,36 +140,34 @@ class Schedule(Base):
 
     def add_action(self, action):
         self.actions.append(action)
-        self.last_action = datetime.now()
+        self.last_action = action.action_type
 
     def __repr__(self):
-        return "<Schedule(id='{}', name='{}', schedule_type='{}', interval='{}', arguments='{}', data='{}', next_run='{}')>"\
-                .format(self.id, self.name, self.schedule_type, self.interval, self.arguments, self.data, self.next_run)
+        return "<Schedule(id='{}', name='{}', type='{}', interval='{}', arguments='{}', data='{}', next_run='{}')>"\
+                .format(self.id, self.name, self.type, self.interval, marshal.loads(self.arguments), self.data, self.next_run)
 
 class Action(Base):
     __tablename__ = 'actions'
 
     id = Column(Integer, primary_key=True)
     action_type = Column(String)
-    description = Column(String)
-    creation_time = Column(DateTime)
+    datetime = Column(DateTime)
     schedule_id = Column(Integer, ForeignKey('schedules.id'))
 
-    def __init__(self, action_type, description):
+    def __init__(self, action_type):
         self.set_action_type(action_type)
-        self.description = description
-        self.creation_time = datetime.now()
+        self.datetime = datetime.now()
 
     def set_action_type(self, action_type):
-        action_types = ['notification', 'completed', 'created']
+        action_types = ['notification', 'completed', 'created', 'due']
         if action_type in action_types:
             self.action_type = action_type
         else:
             raise ValueError('{} is not a valid action_type.'.format(action_type))
 
     def __repr__(self):
-        return "<Action(id='{}', action_type='{}', description='{}', creation_time='{}')>"\
-                .format(self.id, self.action_type, self.description, self.creation_time)
+        return "<Action(id='{}', action_type='{}', datetime='{}')>"\
+                .format(self.id, self.action_type, self.datetime)
 
 class Payment(Base):
     __tablename__ = 'payments'
@@ -208,3 +217,4 @@ class EmailMessage:
                 .format(self.src, self.subject, len(self.body))
 
 
+MODELS = {'user': User, 'contact': Contact, 'schedule': Schedule, 'action': Action, 'text': TextMessage}

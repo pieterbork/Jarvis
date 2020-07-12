@@ -10,8 +10,6 @@ from .. import utils
 from . import *
 from .base_module import BaseModule
 
-logger = logging.getLogger(__name__)
-
 class CommandModule(BaseModule):
     def __init__(self, *args, **kwargs):
         super(self.__class__, self).__init__(*args, **kwargs)
@@ -35,7 +33,7 @@ class CommandModule(BaseModule):
             joke = json.loads(r.text)
             resp = joke['joke']
         except Exception as e:
-            logger.exception("Error parsing joke {}".format(joke))
+            self.logger.exception("Error parsing joke {}".format(joke))
             resp = 'Sorry, there was an error getting your joke...'
         return resp
 
@@ -66,10 +64,10 @@ class CommandModule(BaseModule):
                     name = ' '.join(parts[2:idx]).title()
                     number = part.replace('-','')
             if not name or not number:
-                logger.info("Could not parse name and number from {}".format(parts))
+                self.logger.info("Could not parse name and number from {}".format(parts))
                 contact.send_sms("There was an error parsing that data.")
             else:
-                logger.info("Parsed name as {} and number as {}".format(name, number))
+                self.logger.info("Parsed name as {} and number as {}".format(name, number))
                 c = self.session.query(Contact).filter(Contact.number == number).first()
                 u = self.session.query(User).filter(User.name == name).first()
                 if not u:
@@ -83,60 +81,44 @@ class CommandModule(BaseModule):
         return resp
 
     def get_delete_response(self, contact, parts):
-        logger.info("get_delete_resp: {}".format(parts))
+        self.logger.info("get_delete_resp: {}".format(parts))
         resp = None
         parts_len = len(parts)
-        if parts_len > 2 and parts[1] == 'user':
-            logger.info("Passed if")
-            try:
-                user_id = int(parts[2])
-                logger.info("uid: {}".format(user_id))
-                user = self.session.query(User).get(user_id)
-                self.session.delete(user)
-                self.session.commit()
-                resp = "Deleted user {}".format(user_id)
-            except:
-                resp = "Error deleting user."
+        if parts_len > 2:
+            for name, model in MODELS.items():
+                self.logger.info("{} == {} ?".format(name, parts[1]))
+                if name == parts[1]:
+                    try:
+                        model_id = int(parts[2])
+                        self.logger.info("id: {}".format(model_id))
+                        obj = self.session.query(model).get(model_id)
+                        self.session.delete(obj)
+                        self.session.commit()
+                        resp = "Deleted {} {}".format(name, user_id)
+                    except Exception as e:
+                        resp = "Error deleting {}: {}".format(name, e)
+        return resp
 
     def get_list_response(self, contact, parts):
         resp = None
         parts_len = len(parts)
+        objects = []
         if parts_len >= 2:
-            if parts[1] == 'contacts':
-                objects = self.session.query(Contact).all()
-            elif parts[1] == 'users':
-                objects = self.session.query(User).all()
-            elif parts[1] == 'payments':
-                if parts_len > 2:
-                    if parts[2] == 'for' and parts_len > 3:
-                        name = ' '.join(parts[3:])
-                        user = utils.get_user_from_name(self.session, name)
-                        objects = user.payments
-                else:
-                    objects = self.session.query(Payment).all()
-            elif parts[1] == 'overdue' and parts[2] == 'payments':
-                overdue_payments = self.session.query(Payment)\
-                        .filter(Payment.status == 0)\
-                        .filter(Payment.due < datetime.now()).all()
-                objects = "There are {} overdue payments:".format(len(overdue_payments))
-                for p in overdue_payments:
-                    u = self.session.query(User).get(p.user_id)
-                    days_overdue = (datetime.now() - utils.get_datetime(p.due)).days
-                    objects += "\n(id: {}) {}: {} - {} days late".format(p.id, u.name, p.amount, days_overdue)
-            else:
-                objects = []
-            resp = str(objects)
+            for name,model in MODELS.items():
+                if parts[1] == "{}s".format(name):
+                    objects = self.session.query(model).all()
+        resp = str(objects)
         return resp
     
     def get_run_response(self, contact, parts):
         resp = None
         if parts[0] == 'run':
-            logger.info("run...")
+            self.logger.info("run...")
             if len(parts) > 1 and parts[1] == 'script':
-                logger.info("run script...")
+                self.logger.info("run script...")
                 if len(parts) > 2:
                     for KEY,VALS in SCRIPTS.items():
-                        logger.info("{}:{}".format(KEY, VALS))
+                        self.logger.info("{}:{}".format(KEY, VALS))
                         if parts[2] == KEY or parts[2] in VALS['aliases']:
                             script = KEY
                             args = VALS['args']
@@ -166,7 +148,7 @@ class CommandModule(BaseModule):
             elif parts[0] == 'run':
                 resp = self.get_run_response(contact, parts)
             else:
-                logger.error("Unsupported command: {}".format(msg))
+                self.logger.error("Unsupported command: {}".format(msg))
         return resp
 
     def get_greeting_response(self, contact, msg):
@@ -250,16 +232,16 @@ class CommandModule(BaseModule):
 
     def process_message(self, contact, m):
         body = m.body
-        logger.info("Command is {}".format(body))
+        self.logger.info("Command is {}".format(body))
         
         try:
             resp = self.get_message_response(contact, body.lower())
         except Exception as e:
-            logger.exception("Exception in CommandModule... {}".format(e))
+            self.logger.exception("Exception in CommandModule... {}".format(e))
             resp = "There was an exception processing your command, sorry bb."
         if resp:
             contact.send_sms(resp)
         else:
-            logger.info("Couldn't figure out a response...")
+            self.logger.info("Couldn't figure out a response...")
 
 

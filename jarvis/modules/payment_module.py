@@ -8,8 +8,6 @@ from .. import utils
 from . import User, Contact, Payment, TextMessage, EmailMessage
 from .base_module import BaseModule
 
-logger = logging.getLogger(__name__)
-
 #PaymentMessage used in this module only
 class PaymentMessage:
     def __init__(self, name, amount, platform, direction=None):
@@ -49,7 +47,7 @@ class PaymentModule(BaseModule):
             direction = 'outgoing'
             name = parts[-3:-1]
         else:
-            logger.info("Idk what this is: {}".format(sub))
+            self.logger.info("Idk what this is: {}".format(sub))
             raise Exception("parse_payment_msg_from_email, new kind of message?")
         name = ' '.join(name)
         amount = Decimal(parts[-1].replace('$',''))
@@ -100,9 +98,9 @@ class PaymentModule(BaseModule):
                     due_date = self.get_first_day_next_month(today)
                 p = Payment(amount=amount, due=due_date, next_due=self.get_first_day_next_month(due_date))
             else:
-                logger.info("Could not parse {}".format(date_expr))
+                self.logger.info("Could not parse {}".format(date_expr))
         else:
-            logger.info("Couldn't even get close to parsing {}".format(date_expr))
+            self.logger.info("Couldn't even get close to parsing {}".format(date_expr))
 
         print(p)
         return p
@@ -111,20 +109,20 @@ class PaymentModule(BaseModule):
         user.payments.append(payment)
         self.session.add(user)
         self.session.commit()
-        logger.info("Scheduled payment: {} for {}".format(payment, user))
+        self.logger.info("Scheduled payment: {} for {}".format(payment, user))
 
     def delete_payment(self, payment):
         self.session.delete(payment)
         self.session.commit()
-        logger.info("Deleted payment: {}".format(payment))
+        self.logger.info("Deleted payment: {}".format(payment))
 
     def save(self, obj):
         self.session.add(obj)
         self.session.commit()
-        logger.info("Committed {} to db".format(obj))
+        self.logger.info("Committed {} to db".format(obj))
 
     def complete_payment(self, user, payment):
-        logger.info("Marking {} as complete...".format(payment))
+        self.logger.info("Marking {} as complete...".format(payment))
         payment.complete()
         self.save(payment)
         if payment.next_due:
@@ -154,7 +152,7 @@ class PaymentModule(BaseModule):
                 try:
                     payment_id = int(parts[2])
                 except Exception as e:
-                    logger.exception("Could not parse payment ID: {}".format(parts))
+                    self.logger.exception("Could not parse payment ID: {}".format(parts))
                     return
                 p = self.session.query(Payment).get(payment_id)
                 if p:
@@ -164,7 +162,7 @@ class PaymentModule(BaseModule):
                     resp = "No such payment_id exists."
 
             if resp:
-                logger.info("Sending {} to {}".format(resp, contact.number))
+                self.logger.info("Sending {} to {}".format(resp, contact.number))
                 contact.send_sms(resp)
                 
         elif type(msg) == EmailMessage:
@@ -172,21 +170,21 @@ class PaymentModule(BaseModule):
                 pm = self.parse_payment_msg_from_email(msg)
                 if pm:
                     if pm.direction == 'incoming':
-                        logger.info("Incoming Payment: {}".format(pm))
+                        self.logger.info("Incoming Payment: {}".format(pm))
                         user = utils.get_user_from_name(self.session, pm.name)
                         if user:
-                            logger.info("Found user for payment: {}".format(user.name))
+                            self.logger.info("Found user for payment: {}".format(user.name))
                             for p in user.payments:
                                 if p.amount == pm.amount:
-                                    logger.info("Found matching payment {}".format(p))
+                                    self.logger.info("Found matching payment {}".format(p))
                                     if int(p.status) == 0:
-                                        logger.info("{} just paid their bill of {}".format(user.name, p.amount))
+                                        self.logger.info("{} just paid their bill of {}".format(user.name, p.amount))
                                         #c = user.contacts[0]
                                         #c.send_sms("Hi {}, thanks for paying your bill of ${}.".format(user.name, p.amount))
                                         user.send_sms("Hi {}, thanks for paying your bill of ${}.".format(user.name, p.amount))
                                         self.complete_payment(user, p)
                                     else:
-                                        logger.info("Did {} already pay the bill for {}".format(user.name, p))
+                                        self.logger.info("Did {} already pay the bill for {}".format(user.name, p))
                     else:
                         print('outgoing payment: {}'.format(pm))
 
@@ -198,12 +196,12 @@ class PaymentModule(BaseModule):
             user = p.user
             # needs to be enabled to send to actual contact
             c = user.contacts[0]
-            logger.info("Sending notification for {} to {}".format(p, c))
+            self.logger.info("Sending notification for {} to {}".format(p, c))
             name = user.name.split()[0].title()
             if name == 'Jacob':
                 name = 'J-cooooohhhp'
             result = c.send_sms("Hi {}! You owe Pieter ${} - your due date is today!".format(name, p.amount))
-            logger.info("Notification status: {}".format(result))
+            self.logger.info("Notification status: {}".format(result))
             p.notifications += 1
             self.session.add(p)
             self.session.commit()

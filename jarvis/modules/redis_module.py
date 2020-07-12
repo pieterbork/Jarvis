@@ -10,9 +10,6 @@ import json
 from . import EmailMessage, TextMessage
 from .base_module import BaseModule
 
-logger = logging.getLogger(__name__)
-
-
 class RedisModule(BaseModule):
     def __init__(self, conf):
         #super(self.__class__, self).__init__(*args, **kwargs)
@@ -34,12 +31,12 @@ class RedisModule(BaseModule):
 
     def parse_text_message(self, msg):
         data = msg['data'].decode()
-        logger.info("Parsing message: {} of type {}".format(data, type(data)))
+        self.logger.info("Parsing message: {} of type {}".format(data, type(data)))
         m = TextMessage(data)
         return m
 
     def q_message(self, m):
-        logger.info("Placing {} on message queue!".format(m))
+        self.logger.info("Placing {} on message queue!".format(m))
         self.message_q.put(m)
 
     def run_loop_tasks(self):
@@ -55,6 +52,6 @@ class RedisModule(BaseModule):
             self.q_message(email_m)
 
     def stop(self):
-        logger.info('{} received stop request'.format(self.__name__))
+        self.logger.info('{} received stop request'.format(self.__name__))
         self.process = False
 
